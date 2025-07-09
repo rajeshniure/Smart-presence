@@ -1,0 +1,621 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Scan Attendance - Smart Presence{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2><i class="fas fa-camera"></i> Attendance Scanning</h2>
+                <div class="d-flex gap-2">
+                    <span class="badge bg-primary" id="timeDisplay"></span>
+                    <span class="badge bg-info" id="statusDisplay">Ready</span>
+                </div>
+            </div>
+
+            <div class="row">
+                <!-- Main Scanning Area -->
+                <div class="col-lg-8">
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <h5 class="mb-0">
+                                <i class="fas fa-video"></i> Live Camera Feed
+                                <div class="float-end">
+                                    <small class="text-light" id="fpsCounter">FPS: --</small>
+                                </div>
+                            </h5>
+                        </div>
+                        <div class="card-body text-center">
+                            <!-- Camera Feed -->
+                            <div class="position-relative" id="cameraContainer">
+                                <video id="videoElement" width="640" height="480" autoplay muted style="border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.2); display: none;"></video>
+                                <canvas id="overlay" width="640" height="480" style="position: absolute; top: 0; left: 0; border-radius: 8px; display: none;"></canvas>
+                                
+                                <!-- Camera Placeholder -->
+                                <div id="scanCameraPlaceholder" class="scan-camera-placeholder">
+                                    <div class="placeholder-content">
+                                        <i class="fas fa-video fa-4x mb-3"></i>
+                                        <h5 class="mb-2">Camera Ready</h5>
+                                        <p class="text-muted mb-0">Click "Start Camera" to begin scanning</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Camera Controls -->
+                            <div class="mt-3">
+                                <button type="button" class="btn btn-success me-2" id="startCamera">
+                                    <i class="fas fa-play"></i> Start Camera
+                                </button>
+                                <button type="button" class="btn btn-danger me-2" id="stopCamera" style="display: none;">
+                                    <i class="fas fa-stop"></i> Stop Camera
+                                </button>
+                                <button type="button" class="btn btn-info me-2" id="toggleDetection" style="display: none;">
+                                    <i class="fas fa-search"></i> Start Detection
+                                </button>
+                                <button type="button" class="btn btn-secondary" id="captureManual" style="display: none;">
+                                    <i class="fas fa-camera"></i> Manual Capture
+                                </button>
+                            </div>
+
+                            <!-- Detection Status -->
+                            <div class="mt-3" id="detectionStatus" style="display: none;">
+                                <div class="alert alert-info">
+                                    <i class="fas fa-search"></i> <span id="detectionText">Looking for faces...</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recognition Results -->
+                <div class="col-lg-4">
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <h5 class="mb-0">
+                                <i class="fas fa-user-check"></i> Recognition Results
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <!-- Recognition Card -->
+                            <div id="recognitionResult" style="display: none;">
+                                <div class="card border-success">
+                                    <div class="card-body text-center">
+                                        <div class="mb-3">
+                                            <img id="studentPhoto" src="" alt="Student" class="rounded-circle" width="80" height="80" style="object-fit: cover;">
+                                        </div>
+                                        <h5 id="studentName" class="card-title">--</h5>
+                                        <p class="card-text">
+                                            <strong>Roll No:</strong> <span id="studentRoll">--</span><br>
+                                            <strong>Department:</strong> <span id="studentDept">--</span>
+                                        </p>
+                                        <div class="mb-2">
+                                            <span class="badge bg-success" id="attendanceStatus">Present</span>
+                                            <span class="badge bg-info" id="confidenceScore">95%</span>
+                                        </div>
+                                        <div class="emotion-section">
+                                            <h6>Detected Emotion:</h6>
+                                            <span class="badge bg-warning" id="emotionBadge">
+                                                <i class="fas fa-smile" id="emotionIcon"></i>
+                                                <span id="emotionText">Happy</span>
+                                            </span>
+                                            <small class="d-block mt-1" id="emotionConfidence">Confidence: 87%</small>
+                                        </div>
+                                        <div class="mt-3">
+                                            <button class="btn btn-success btn-sm" id="confirmAttendance">
+                                                <i class="fas fa-check"></i> Confirm Attendance
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- No Recognition -->
+                            <div id="noRecognition">
+                                <div class="text-center text-muted py-4">
+                                    <i class="fas fa-user-times fa-3x mb-3"></i>
+                                    <h5>No Recognition</h5>
+                                    <p>Position your face clearly in front of the camera</p>
+                                </div>
+                            </div>
+
+                            <!-- Recent Attendance -->
+                            <div class="mt-4">
+                                <h6><i class="fas fa-clock"></i> Recent Attendance</h6>
+                                <div id="recentAttendance" class="recent-list">
+                                    <!-- Recent attendance items will be added here -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Statistics -->
+            <div class="row mt-4">
+                <div class="col-md-3">
+                    <div class="card text-white bg-success">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h4 id="todayPresent">0</h4>
+                                    <small>Present Today</small>
+                                </div>
+                                <i class="fas fa-check-circle fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-white bg-warning">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h4 id="todayLate">0</h4>
+                                    <small>Late Today</small>
+                                </div>
+                                <i class="fas fa-clock fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-white bg-info">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h4 id="todayScanned">0</h4>
+                                    <small>Scanned Today</small>
+                                </div>
+                                <i class="fas fa-camera fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-white bg-primary">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h4 id="accuracyRate">--</h4>
+                                    <small>Accuracy Rate</small>
+                                </div>
+                                <i class="fas fa-bullseye fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Success Modal -->
+<div class="modal fade" id="successModal" tabindex="-1" aria-labelledby="successModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title" id="successModalLabel">
+                    <i class="fas fa-check-circle"></i> Attendance Recorded
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center">
+                <div class="mb-3">
+                    <img id="modalStudentPhoto" src="" alt="Student" class="rounded-circle" width="100" height="100">
+                </div>
+                <h4 id="modalStudentName">--</h4>
+                <p class="mb-2">
+                    <strong>Time:</strong> <span id="modalTime">--</span><br>
+                    <strong>Status:</strong> <span id="modalStatus" class="badge bg-success">Present</span>
+                </p>
+                <div class="emotion-display">
+                    <h6>Detected Emotion:</h6>
+                    <span id="modalEmotion" class="badge bg-warning">😊 Happy</span>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Continue Scanning</button>
+                <a href="{% url 'attendance' %}" class="btn btn-outline-primary">View All Records</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Global variables
+let videoStream = null;
+let isDetecting = false;
+let detectionInterval = null;
+let fpsInterval = null;
+let frameCount = 0;
+let lastTime = Date.now();
+
+// DOM elements
+const videoElement = document.getElementById('videoElement');
+const overlayCanvas = document.getElementById('overlay');
+const scanCameraPlaceholder = document.getElementById('scanCameraPlaceholder');
+const startCameraBtn = document.getElementById('startCamera');
+const stopCameraBtn = document.getElementById('stopCamera');
+const toggleDetectionBtn = document.getElementById('toggleDetection');
+const detectionStatus = document.getElementById('detectionStatus');
+const recognitionResult = document.getElementById('recognitionResult');
+const noRecognition = document.getElementById('noRecognition');
+
+// Initialize
+document.addEventListener('DOMContentLoaded', function() {
+    updateTime();
+    setInterval(updateTime, 1000);
+    loadTodayStats();
+});
+
+// Camera Controls
+startCameraBtn.addEventListener('click', startCamera);
+stopCameraBtn.addEventListener('click', stopCamera);
+toggleDetectionBtn.addEventListener('click', toggleDetection);
+document.getElementById('confirmAttendance').addEventListener('click', confirmAttendance);
+
+async function startCamera() {
+    try {
+        videoStream = await navigator.mediaDevices.getUserMedia({ 
+            video: { 
+                width: 640, 
+                height: 480,
+                facingMode: 'user'
+            } 
+        });
+        
+        videoElement.srcObject = videoStream;
+        videoElement.style.display = 'block';
+        overlayCanvas.style.display = 'block';
+        scanCameraPlaceholder.style.display = 'none';
+        
+        startCameraBtn.style.display = 'none';
+        stopCameraBtn.style.display = 'inline-block';
+        toggleDetectionBtn.style.display = 'inline-block';
+        document.getElementById('captureManual').style.display = 'inline-block';
+        
+        updateStatus('Camera Started', 'success');
+        startFPSCounter();
+        
+    } catch (error) {
+        console.error('Error accessing camera:', error);
+        updateStatus('Camera Error', 'danger');
+        alert('Error accessing camera. Please check permissions.');
+    }
+}
+
+function stopCamera() {
+    if (videoStream) {
+        videoStream.getTracks().forEach(track => track.stop());
+        videoStream = null;
+    }
+    
+    if (detectionInterval) {
+        clearInterval(detectionInterval);
+        detectionInterval = null;
+    }
+    
+    if (fpsInterval) {
+        clearInterval(fpsInterval);
+        fpsInterval = null;
+    }
+    
+    videoElement.style.display = 'none';
+    overlayCanvas.style.display = 'none';
+    scanCameraPlaceholder.style.display = 'flex';
+    detectionStatus.style.display = 'none';
+    
+    startCameraBtn.style.display = 'inline-block';
+    stopCameraBtn.style.display = 'none';
+    toggleDetectionBtn.style.display = 'none';
+    document.getElementById('captureManual').style.display = 'none';
+    
+    isDetecting = false;
+    toggleDetectionBtn.innerHTML = '<i class="fas fa-search"></i> Start Detection';
+    toggleDetectionBtn.className = 'btn btn-info me-2';
+    
+    updateStatus('Camera Stopped', 'secondary');
+}
+
+function toggleDetection() {
+    if (!isDetecting) {
+        startDetection();
+    } else {
+        stopDetection();
+    }
+}
+
+function startDetection() {
+    isDetecting = true;
+    detectionStatus.style.display = 'block';
+    toggleDetectionBtn.innerHTML = '<i class="fas fa-pause"></i> Stop Detection';
+    toggleDetectionBtn.className = 'btn btn-warning me-2';
+    
+    updateStatus('Detecting...', 'info');
+    
+    // Simulate detection process (replace with actual ML model)
+    detectionInterval = setInterval(() => {
+        simulateDetection();
+    }, 1000);
+}
+
+function stopDetection() {
+    isDetecting = false;
+    detectionStatus.style.display = 'none';
+    toggleDetectionBtn.innerHTML = '<i class="fas fa-search"></i> Start Detection';
+    toggleDetectionBtn.className = 'btn btn-info me-2';
+    
+    if (detectionInterval) {
+        clearInterval(detectionInterval);
+        detectionInterval = null;
+    }
+    
+    updateStatus('Detection Stopped', 'secondary');
+    showNoRecognition();
+}
+
+function simulateDetection() {
+    // This is a simulation - replace with actual face recognition
+    const shouldDetect = Math.random() > 0.7; // 30% chance of detection
+    
+    if (shouldDetect) {
+        // Simulate recognition of a student
+        const mockStudent = {
+            id: 1,
+            name: "John Doe",
+            roll_number: "CS2021001",
+            department: "Computer Science",
+            image: "/static/images/placeholder-avatar.png",
+            confidence: Math.random() * 20 + 80, // 80-100%
+            emotion: getRandomEmotion()
+        };
+        
+        showRecognitionResult(mockStudent);
+        document.getElementById('detectionText').textContent = 'Face detected and recognized!';
+    } else {
+        showNoRecognition();
+        document.getElementById('detectionText').textContent = 'Looking for faces...';
+    }
+    
+    // Draw face detection box (simulation)
+    if (shouldDetect) {
+        drawFaceBox();
+    }
+}
+
+function showRecognitionResult(student) {
+    recognitionResult.style.display = 'block';
+    noRecognition.style.display = 'none';
+    
+    document.getElementById('studentPhoto').src = student.image;
+    document.getElementById('studentName').textContent = student.name;
+    document.getElementById('studentRoll').textContent = student.roll_number;
+    document.getElementById('studentDept').textContent = student.department;
+    document.getElementById('confidenceScore').textContent = student.confidence.toFixed(1) + '%';
+    
+    // Set attendance status based on time
+    const now = new Date();
+    const hour = now.getHours();
+    const minute = now.getMinutes();
+    
+    let status, statusClass;
+    if (hour < 9 || (hour === 9 && minute <= 10)) {
+        status = 'Present';
+        statusClass = 'bg-success';
+    } else if (hour < 10) {
+        status = 'Late';
+        statusClass = 'bg-warning';
+    } else {
+        status = 'Absent';
+        statusClass = 'bg-danger';
+    }
+    
+    const statusBadge = document.getElementById('attendanceStatus');
+    statusBadge.textContent = status;
+    statusBadge.className = `badge ${statusClass}`;
+    
+    // Show emotion
+    showEmotion(student.emotion);
+}
+
+function showNoRecognition() {
+    recognitionResult.style.display = 'none';
+    noRecognition.style.display = 'block';
+}
+
+function showEmotion(emotion) {
+    const emotionIcons = {
+        'happy': 'fa-smile',
+        'sad': 'fa-frown',
+        'angry': 'fa-angry',
+        'neutral': 'fa-meh',
+        'surprised': 'fa-surprise',
+        'fearful': 'fa-dizzy',
+        'disgusted': 'fa-grimace'
+    };
+    
+    const emotionColors = {
+        'happy': 'bg-success',
+        'sad': 'bg-primary',
+        'angry': 'bg-danger',
+        'neutral': 'bg-secondary',
+        'surprised': 'bg-warning',
+        'fearful': 'bg-info',
+        'disgusted': 'bg-dark'
+    };
+    
+    document.getElementById('emotionIcon').className = `fas ${emotionIcons[emotion.type]}`;
+    document.getElementById('emotionText').textContent = emotion.type.charAt(0).toUpperCase() + emotion.type.slice(1);
+    document.getElementById('emotionBadge').className = `badge ${emotionColors[emotion.type]}`;
+    document.getElementById('emotionConfidence').textContent = `Confidence: ${emotion.confidence.toFixed(1)}%`;
+}
+
+function drawFaceBox() {
+    const ctx = overlayCanvas.getContext('2d');
+    ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+    
+    // Calculate center position for face detection box
+    const boxWidth = 240;
+    const boxHeight = 180;
+    const centerX = (overlayCanvas.width - boxWidth) / 2;
+    const centerY = (overlayCanvas.height - boxHeight) / 2;
+    
+    // Draw face detection box (centered)
+    ctx.strokeStyle = '#00ff00';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(centerX, centerY, boxWidth, boxHeight);
+    
+    // Save context state
+    ctx.save();
+    
+    // Unmirror the text by applying scaleX(-1) to counteract canvas mirroring
+    ctx.scale(-1, 1);
+    ctx.fillStyle = '#00ff00';
+    ctx.font = 'bold 16px Arial';
+    
+    // Draw text with adjusted coordinates (negative X due to scale flip)
+    const textX = -(centerX + boxWidth - 10); // Adjust for mirrored coordinates
+    const textY = centerY - 10;
+    ctx.fillText('Face Detected', textX, textY);
+    
+    // Restore context state
+    ctx.restore();
+}
+
+function confirmAttendance() {
+    // Simulate attendance confirmation
+    const studentName = document.getElementById('studentName').textContent;
+    const status = document.getElementById('attendanceStatus').textContent;
+    const emotion = document.getElementById('emotionText').textContent;
+    
+    // Show success modal
+    document.getElementById('modalStudentPhoto').src = document.getElementById('studentPhoto').src;
+    document.getElementById('modalStudentName').textContent = studentName;
+    document.getElementById('modalTime').textContent = new Date().toLocaleTimeString();
+    document.getElementById('modalStatus').textContent = status;
+    document.getElementById('modalEmotion').textContent = `😊 ${emotion}`;
+    
+    new bootstrap.Modal(document.getElementById('successModal')).show();
+    
+    // Add to recent attendance
+    addToRecentAttendance(studentName, status);
+    
+    // Update statistics
+    updateTodayStats();
+    
+    // Hide recognition result
+    showNoRecognition();
+    
+    updateStatus('Attendance Recorded', 'success');
+}
+
+function addToRecentAttendance(name, status) {
+    const recentList = document.getElementById('recentAttendance');
+    const time = new Date().toLocaleTimeString();
+    
+    const statusClass = status === 'Present' ? 'success' : status === 'Late' ? 'warning' : 'danger';
+    
+    const item = document.createElement('div');
+    item.className = 'recent-item mb-2 p-2 border rounded fade-in';
+    item.innerHTML = `
+        <div class="d-flex justify-content-between">
+            <small><strong>${name}</strong></small>
+            <span class="badge bg-${statusClass}">${status}</span>
+        </div>
+        <small class="text-muted">${time}</small>
+    `;
+    
+    recentList.insertBefore(item, recentList.firstChild);
+    
+    // Keep only last 5 items
+    while (recentList.children.length > 5) {
+        recentList.removeChild(recentList.lastChild);
+    }
+}
+
+function updateTime() {
+    const now = new Date();
+    document.getElementById('timeDisplay').textContent = now.toLocaleTimeString();
+}
+
+function updateStatus(message, type) {
+    const statusDisplay = document.getElementById('statusDisplay');
+    statusDisplay.textContent = message;
+    statusDisplay.className = `badge bg-${type}`;
+}
+
+function startFPSCounter() {
+    fpsInterval = setInterval(() => {
+        const now = Date.now();
+        const elapsed = now - lastTime;
+        const fps = Math.round(1000 / elapsed);
+        document.getElementById('fpsCounter').textContent = `FPS: ${fps}`;
+        lastTime = now;
+    }, 1000);
+}
+
+function getRandomEmotion() {
+    const emotions = ['happy', 'neutral', 'sad', 'surprised', 'angry', 'fearful', 'disgusted'];
+    const type = emotions[Math.floor(Math.random() * emotions.length)];
+    return {
+        type: type,
+        confidence: Math.random() * 30 + 70 // 70-100%
+    };
+}
+
+function loadTodayStats() {
+    // Simulate loading today's statistics
+    document.getElementById('todayPresent').textContent = '23';
+    document.getElementById('todayLate').textContent = '5';
+    document.getElementById('todayScanned').textContent = '28';
+    document.getElementById('accuracyRate').textContent = '94%';
+}
+
+function updateTodayStats() {
+    // Simulate updating statistics
+    const current = parseInt(document.getElementById('todayScanned').textContent);
+    document.getElementById('todayScanned').textContent = current + 1;
+}
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', function() {
+    if (videoStream) {
+        videoStream.getTracks().forEach(track => track.stop());
+    }
+});
+</script>
+
+<style>
+.recent-item {
+    background: rgba(255, 255, 255, 0.8);
+    transition: all 0.3s ease;
+}
+
+.recent-item:hover {
+    background: rgba(255, 255, 255, 1);
+    transform: scale(1.02);
+}
+
+#overlay {
+    pointer-events: none;
+}
+
+.emotion-section, .emotion-display {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid #eee;
+}
+
+.card-body {
+    max-height: 600px;
+    overflow-y: auto;
+}
+
+#cameraContainer {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+</style>
+{% endblock %} 

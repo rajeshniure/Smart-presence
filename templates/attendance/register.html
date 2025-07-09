@@ -1,0 +1,302 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Register Student - Smart Presence{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-10">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h3 class="mb-0"><i class="fas fa-user-plus"></i> Student Registration</h3>
+                </div>
+                <div class="card-body">
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+
+                    <form method="post" enctype="multipart/form-data" id="studentForm">
+                        {% csrf_token %}
+                        <div class="row">
+                            <!-- Student Information -->
+                            <div class="col-md-6">
+                                <h5 class="text-primary mb-3">Student Information</h5>
+                                
+                                <div class="mb-3">
+                                    <label for="name" class="form-label">Full Name *</label>
+                                    <input type="text" class="form-control" id="name" name="name" required>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="roll_number" class="form-label">Roll Number *</label>
+                                    <input type="text" class="form-control" id="roll_number" name="roll_number" required>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="email" class="form-label">Email Address *</label>
+                                    <input type="email" class="form-control" id="email" name="email" required>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="phone" class="form-label">Phone Number</label>
+                                    <input type="tel" class="form-control" id="phone" name="phone">
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="department" class="form-label">Department *</label>
+                                    <select class="form-select" id="department" name="department" required>
+                                        <option value="">Select Department</option>
+                                        <option value="Computer Science">Computer Science</option>
+                                        <option value="Information Technology">Information Technology</option>
+                                        <option value="Electronics">Electronics</option>
+                                        <option value="Mechanical">Mechanical</option>
+                                        <option value="Civil">Civil</option>
+                                        <option value="Electrical">Electrical</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Image Capture -->
+                            <div class="col-md-6">
+                                <h5 class="text-primary mb-3">Photo Capture</h5>
+                                
+                                <!-- Image Upload -->
+                                <div class="mb-3">
+                                    <label for="image" class="form-label">Upload Photo</label>
+                                    <input type="file" class="form-control" id="image" name="image" accept="image/*">
+                                    <div class="form-text">Upload a clear photo or use webcam below</div>
+                                </div>
+
+                                <!-- Webcam Section -->
+                                <div class="webcam-section">
+                                    <!-- Camera Preview Container -->
+                                    <div class="camera-preview-container mb-3">
+                                        <div class="camera-wrapper">
+                                            <!-- Video Element -->
+                                            <video id="webcam" autoplay muted playsinline class="camera-element" style="display: none;"></video>
+                                            
+                                            <!-- Canvas for capture -->
+                                            <canvas id="canvas" class="camera-element" style="display: none;"></canvas>
+                                            
+                                            <!-- Captured Image Preview -->
+                                            <div id="captured-image" class="camera-element" style="display: none;">
+                                                <img id="preview" class="camera-element" alt="Captured preview">
+                                            </div>
+                                            
+                                            <!-- Placeholder -->
+                                            <div id="webcam-placeholder" class="camera-element camera-placeholder">
+                                                <div class="placeholder-content">
+                                                    <i class="fas fa-camera fa-3x mb-3 text-muted"></i>
+                                                    <h6 class="text-muted mb-2">Camera Preview</h6>
+                                                    <p class="text-muted small mb-0">Click "Start Webcam" to capture photo</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Camera Controls -->
+                                    <div class="camera-controls">
+                                        <div class="btn-group w-100" role="group">
+                                            <button type="button" class="btn btn-success" id="startWebcam">
+                                                <i class="fas fa-video"></i> Start Webcam
+                                            </button>
+                                            <button type="button" class="btn btn-primary" id="captureBtn" style="display: none;">
+                                                <i class="fas fa-camera"></i> Capture
+                                            </button>
+                                            <button type="button" class="btn btn-warning" id="retakeBtn" style="display: none;">
+                                                <i class="fas fa-redo"></i> Retake
+                                            </button>
+                                            <button type="button" class="btn btn-danger" id="stopWebcam" style="display: none;">
+                                                <i class="fas fa-stop"></i> Stop
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <input type="hidden" id="webcam_image" name="webcam_image">
+                            </div>
+                        </div>
+
+                        <!-- Form Actions -->
+                        <div class="row mt-4">
+                            <div class="col-12">
+                                <hr>
+                                <div class="d-flex justify-content-between">
+                                    <a href="{% url 'home' %}" class="btn btn-secondary">
+                                        <i class="fas fa-arrow-left"></i> Back to Home
+                                    </a>
+                                    <button type="submit" class="btn btn-primary btn-lg">
+                                        <i class="fas fa-user-plus"></i> Register Student
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Success Modal -->
+<div class="modal fade" id="successModal" tabindex="-1" aria-labelledby="successModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title" id="successModalLabel">Registration Successful!</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="text-center">
+                    <i class="fas fa-check-circle fa-4x text-success mb-3"></i>
+                    <h4>Student registered successfully!</h4>
+                    <p>The student has been added to the system and is ready for attendance scanning.</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <a href="{% url 'register' %}" class="btn btn-primary">Register Another</a>
+                <a href="{% url 'students' %}" class="btn btn-success">View Students</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Webcam functionality
+let webcamStream = null;
+let webcamElement = document.getElementById('webcam');
+let canvasElement = document.getElementById('canvas');
+let capturedImageDiv = document.getElementById('captured-image');
+let previewImg = document.getElementById('preview');
+let placeholderDiv = document.getElementById('webcam-placeholder');
+
+document.getElementById('startWebcam').addEventListener('click', startWebcam);
+document.getElementById('captureBtn').addEventListener('click', captureImage);
+document.getElementById('retakeBtn').addEventListener('click', retakeImage);
+document.getElementById('stopWebcam').addEventListener('click', stopWebcam);
+
+async function startWebcam() {
+    try {
+        webcamStream = await navigator.mediaDevices.getUserMedia({ 
+            video: { 
+                width: { ideal: 640 }, 
+                height: { ideal: 480 },
+                facingMode: 'user'
+            } 
+        });
+        webcamElement.srcObject = webcamStream;
+        
+        // Set up canvas size to match video
+        webcamElement.addEventListener('loadedmetadata', () => {
+            const rect = webcamElement.getBoundingClientRect();
+            canvasElement.width = rect.width;
+            canvasElement.height = rect.height;
+        });
+        
+        // Show/hide elements
+        placeholderDiv.style.display = 'none';
+        webcamElement.style.display = 'block';
+        document.getElementById('startWebcam').style.display = 'none';
+        document.getElementById('captureBtn').style.display = 'inline-block';
+        document.getElementById('stopWebcam').style.display = 'inline-block';
+        
+    } catch (error) {
+        console.error('Error accessing webcam:', error);
+        alert('Error accessing webcam. Please ensure you have given camera permissions.');
+    }
+}
+
+function captureImage() {
+    // Ensure canvas size matches current video display size
+    const rect = webcamElement.getBoundingClientRect();
+    canvasElement.width = rect.width;
+    canvasElement.height = rect.height;
+    
+    const context = canvasElement.getContext('2d');
+    
+    // Save context state
+    context.save();
+    
+    // Flip the canvas horizontally to counteract the mirrored video
+    context.scale(-1, 1);
+    context.translate(-canvasElement.width, 0);
+    
+    // Draw the video frame (this will result in a normal, unmirrored image)
+    context.drawImage(webcamElement, 0, 0, canvasElement.width, canvasElement.height);
+    
+    // Restore context state
+    context.restore();
+    
+    // Convert canvas to base64
+    const imageData = canvasElement.toDataURL('image/jpeg', 0.8);
+    document.getElementById('webcam_image').value = imageData;
+    
+    // Show preview
+    previewImg.src = imageData;
+    webcamElement.style.display = 'none';
+    capturedImageDiv.style.display = 'block';
+    
+    // Update buttons
+    document.getElementById('captureBtn').style.display = 'none';
+    document.getElementById('retakeBtn').style.display = 'inline-block';
+}
+
+function retakeImage() {
+    // Clear captured image
+    document.getElementById('webcam_image').value = '';
+    
+    // Show webcam again
+    capturedImageDiv.style.display = 'none';
+    webcamElement.style.display = 'block';
+    
+    // Update buttons
+    document.getElementById('retakeBtn').style.display = 'none';
+    document.getElementById('captureBtn').style.display = 'inline-block';
+}
+
+function stopWebcam() {
+    if (webcamStream) {
+        webcamStream.getTracks().forEach(track => track.stop());
+        webcamStream = null;
+    }
+    
+    // Clear captured image data
+    document.getElementById('webcam_image').value = '';
+    
+    // Reset display
+    webcamElement.style.display = 'none';
+    capturedImageDiv.style.display = 'none';
+    placeholderDiv.style.display = 'flex';
+    
+    // Reset buttons
+    document.getElementById('startWebcam').style.display = 'inline-block';
+    document.getElementById('captureBtn').style.display = 'none';
+    document.getElementById('retakeBtn').style.display = 'none';
+    document.getElementById('stopWebcam').style.display = 'none';
+}
+
+// Form validation
+document.getElementById('studentForm').addEventListener('submit', function(e) {
+    const fileInput = document.getElementById('image');
+    const webcamInput = document.getElementById('webcam_image');
+    
+    if (!fileInput.files.length && !webcamInput.value) {
+        e.preventDefault();
+        alert('Please upload an image or capture one using the webcam.');
+        return false;
+    }
+});
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', function() {
+    if (webcamStream) {
+        webcamStream.getTracks().forEach(track => track.stop());
+    }
+});
+</script>
+{% endblock %} 

@@ -1,0 +1,75 @@
+{% extends 'base.html' %}
+{% block title %}Home - Smart Presence{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="text-center mb-5">
+        <h1 class="display-5 fw-bold">Welcome to Smart Presence</h1>
+        <p class="lead text-muted">Track attendance, lateness, and absence seamlessly with live insights.</p>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row g-4">
+        <div class="col-md-3">
+            <div class="card shadow-sm border-0 text-center bg-gradient text-white bg-primary">
+                <div class="card-body">
+                    <i class="fas fa-users fa-2x mb-2"></i>
+                    <h6 class="fw-semibold">Total Students</h6>
+                    <h3>{{ total_students }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card shadow-sm border-0 text-center bg-gradient text-white bg-success">
+                <div class="card-body">
+                    <i class="fas fa-user-check fa-2x mb-2"></i>
+                    <h6 class="fw-semibold">Present Today</h6>
+                    <h3>{{ present_today }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card shadow-sm border-0 text-center bg-gradient text-dark bg-warning">
+                <div class="card-body">
+                    <i class="fas fa-clock fa-2x mb-2"></i>
+                    <h6 class="fw-semibold">Late Today</h6>
+                    <h3>{{ late_today }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card shadow-sm border-0 text-center bg-gradient text-white bg-danger">
+                <div class="card-body">
+                    <i class="fas fa-user-times fa-2x mb-2"></i>
+                    <h6 class="fw-semibold">Absent Today</h6>
+                    <h3>{{ absent_today }}</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row g-4 mt-5">
+        <div class="col-md-6">
+            <div class="card h-100 hover-shadow">
+                <div class="card-body text-center">
+                    <i class="fas fa-user-plus fa-2x text-primary mb-3"></i>
+                    <h5 class="card-title">Register Student</h5>
+                    <p class="card-text text-muted">Add a new student and store their details securely.</p>
+                    <a href="{% url 'register' %}" class="btn btn-outline-primary mt-2">Go to Registration</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card h-100 hover-shadow">
+                <div class="card-body text-center">
+                    <i class="fas fa-qrcode fa-2x text-success mb-3"></i>
+                    <h5 class="card-title">Scan Attendance</h5>
+                    <p class="card-text text-muted">Start the attendance process with a live scan.</p>
+                    <a href="{% url 'scan' %}" class="btn btn-success mt-2">Start Scanning</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

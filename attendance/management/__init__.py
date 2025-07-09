@@ -1,0 +1,1 @@
+# Django management commands for attendance app 
