@@ -1,0 +1,281 @@
+{% extends 'studentDashboard/base.html' %}
+{% load static %}
+
+{% block title %}My Attendance - Student Dashboard{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12 mb-4">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h4 class="mb-0"><i class="fas fa-calendar-check me-2"></i>My Attendance History</h4>
+                <form class="d-flex" method="GET">
+                    <div class="input-group">
+                        <span class="input-group-text">Month</span>
+                        <select class="form-select" name="month" onchange="this.form.submit()">
+                            <option value="">All Time</option>
+                            {% for month_num, month_name in months %}
+                                <option value="{{ month_num }}" {% if selected_month == month_num %}selected{% endif %}>{{ month_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="card-body">
+                <div class="row mb-4">
+                    <div class="col-md-3">
+                        <div class="card bg-light">
+                            <div class="card-body text-center">
+                                <h5 class="text-success mb-1">{{ attendance_stats.present }}</h5>
+                                <p class="mb-0">Present</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-light">
+                            <div class="card-body text-center">
+                                <h5 class="text-warning mb-1">{{ attendance_stats.late }}</h5>
+                                <p class="mb-0">Late</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-light">
+                            <div class="card-body text-center">
+                                <h5 class="text-danger mb-1">{{ attendance_stats.absent }}</h5>
+                                <p class="mb-0">Absent</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-light">
+                            <div class="card-body text-center">
+                                <h5 class="mb-1">{{ attendance_stats.rate }}%</h5>
+                                <p class="mb-0">Attendance Rate</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                {% if attendance_records %}
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Status</th>
+                                    <th>Check-in Time</th>
+                                    <th>Check-out Time</th>
+                                    <th>Details</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for record in attendance_records %}
+                                    <tr>
+                                        <td>{{ record.date }}</td>
+                                        <td>
+                                            {% if record.status == 'present' %}
+                                                <span class="badge bg-success">Present</span>
+                                            {% elif record.status == 'late' %}
+                                                <span class="badge bg-warning">Late</span>
+                                            {% else %}
+                                                <span class="badge bg-danger">Absent</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ record.check_in_time|default:"-" }}</td>
+                                        <td>{{ record.check_out_time|default:"-" }}</td>
+                                        <td>
+                                            <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#detailsModal" 
+                                                    data-record-id="{{ record.id }}" data-record-date="{{ record.date }}">
+                                                <i class="fas fa-info-circle"></i> Details
+                                            </button>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Pagination -->
+                    {% if attendance_records.has_other_pages %}
+                        <nav aria-label="Attendance pagination" class="mt-4">
+                            <ul class="pagination justify-content-center">
+                                {% if attendance_records.has_previous %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page=1{% if selected_month %}&month={{ selected_month }}{% endif %}" aria-label="First">
+                                            <span aria-hidden="true">&laquo;&laquo;</span>
+                                        </a>
+                                    </li>
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ attendance_records.previous_page_number }}{% if selected_month %}&month={{ selected_month }}{% endif %}" aria-label="Previous">
+                                            <span aria-hidden="true">&laquo;</span>
+                                        </a>
+                                    </li>
+                                {% else %}
+                                    <li class="page-item disabled">
+                                        <span class="page-link">&laquo;&laquo;</span>
+                                    </li>
+                                    <li class="page-item disabled">
+                                        <span class="page-link">&laquo;</span>
+                                    </li>
+                                {% endif %}
+                                
+                                {% for i in attendance_records.paginator.page_range %}
+                                    {% if attendance_records.number == i %}
+                                        <li class="page-item active"><span class="page-link">{{ i }}</span></li>
+                                    {% elif i > attendance_records.number|add:'-3' and i < attendance_records.number|add:'3' %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="?page={{ i }}{% if selected_month %}&month={{ selected_month }}{% endif %}">{{ i }}</a>
+                                        </li>
+                                    {% endif %}
+                                {% endfor %}
+                                
+                                {% if attendance_records.has_next %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ attendance_records.next_page_number }}{% if selected_month %}&month={{ selected_month }}{% endif %}" aria-label="Next">
+                                            <span aria-hidden="true">&raquo;</span>
+                                        </a>
+                                    </li>
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ attendance_records.paginator.num_pages }}{% if selected_month %}&month={{ selected_month }}{% endif %}" aria-label="Last">
+                                            <span aria-hidden="true">&raquo;&raquo;</span>
+                                        </a>
+                                    </li>
+                                {% else %}
+                                    <li class="page-item disabled">
+                                        <span class="page-link">&raquo;</span>
+                                    </li>
+                                    <li class="page-item disabled">
+                                        <span class="page-link">&raquo;&raquo;</span>
+                                    </li>
+                                {% endif %}
+                            </ul>
+                        </nav>
+                    {% endif %}
+                {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-calendar-xmark fa-4x text-muted mb-3"></i>
+                        <h5 class="text-muted">No attendance records found</h5>
+                        {% if selected_month %}
+                            <p>No records found for the selected month. Try another month or view all records.</p>
+                            <a href="{% url 'student_attendance' %}" class="btn btn-primary mt-2">
+                                <i class="fas fa-list me-2"></i> View All Records
+                            </a>
+                        {% else %}
+                            <p>You don't have any attendance records yet.</p>
+                        {% endif %}
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Attendance Details Modal -->
+<div class="modal fade" id="detailsModal" tabindex="-1" aria-labelledby="detailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="detailsModalLabel">Attendance Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="detailsModalBody">
+                <div class="text-center">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2">Loading details...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const detailsModal = document.getElementById('detailsModal');
+        detailsModal.addEventListener('show.bs.modal', function(event) {
+            const button = event.relatedTarget;
+            const recordId = button.getAttribute('data-record-id');
+            const recordDate = button.getAttribute('data-record-date');
+            
+            // Update modal title
+            document.getElementById('detailsModalLabel').textContent = `Attendance Details - ${recordDate}`;
+            
+            // Fetch attendance details
+            fetch(`/api/attendance/${recordId}/emotions/`)
+                .then(response => response.json())
+                .then(data => {
+                    let modalContent = `
+                        <div class="mb-4">
+                            <h6>Status Information</h6>
+                            <table class="table table-borderless">
+                                <tr>
+                                    <th>Date:</th>
+                                    <td>${data.date}</td>
+                                </tr>
+                                <tr>
+                                    <th>Status:</th>
+                                    <td id="attendanceStatus"></td>
+                                </tr>
+                            </table>
+                        </div>
+                    `;
+                    
+                    if (data.emotions && data.emotions.length > 0) {
+                        modalContent += `
+                            <div>
+                                <h6>Emotion Analysis</h6>
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>Time</th>
+                                            <th>Emotion</th>
+                                            <th>Confidence</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                        `;
+                        
+                        data.emotions.forEach(emotion => {
+                            const timestamp = new Date(emotion.timestamp).toLocaleTimeString();
+                            modalContent += `
+                                <tr>
+                                    <td>${timestamp}</td>
+                                    <td>${emotion.emotion}</td>
+                                    <td>${(emotion.confidence * 100).toFixed(2)}%</td>
+                                </tr>
+                            `;
+                        });
+                        
+                        modalContent += `
+                                    </tbody>
+                                </table>
+                            </div>
+                        `;
+                    } else {
+                        modalContent += `
+                            <div class="text-center py-3">
+                                <i class="fas fa-face-meh fa-2x text-muted mb-2"></i>
+                                <p class="text-muted mb-0">No emotion data available for this attendance record.</p>
+                            </div>
+                        `;
+                    }
+                    
+                    document.getElementById('detailsModalBody').innerHTML = modalContent;
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    document.getElementById('detailsModalBody').innerHTML = `
+                        <div class="alert alert-danger">
+                            <i class="fas fa-exclamation-circle me-2"></i>
+                            Error loading attendance details.
+                        </div>
+                    `;
+                });
+        });
+    });
+</script>
+{% endblock %}
+{% endblock %} 

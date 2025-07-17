@@ -1,0 +1,144 @@
+{% extends 'studentDashboard/base.html' %}
+{% load static %}
+
+{% block title %}Home - Student Dashboard{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0"><i class="fas fa-user-circle me-2"></i>Welcome, {{ student.name }}</h4>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4 text-center mb-4 mb-md-0">
+                        {% if student.image %}
+                            <div class="mx-auto" style="width: 150px; height: 150px; border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center;">
+                                <img src="{{ student.image.url }}" alt="{{ student.name }}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">
+                            </div>
+                        {% else %}
+                            <div class="bg-secondary rounded-circle d-flex align-items-center justify-content-center text-white mx-auto" style="width: 150px; height: 150px; background-color: #000000;">
+                                <i class="fas fa-user fa-4x"></i>
+                            </div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-8">
+                        <h5>Your Information</h5>
+                        <table class="table table-borderless">
+                            <tr>
+                                <th width="30%">Roll Number:</th>
+                                <td>{{ student.roll_number }}</td>
+                            </tr>
+                            <tr>
+                                <th>Department:</th>
+                                <td>{{ student.department }}</td>
+                            </tr>
+                            <tr>
+                                <th>Email:</th>
+                                <td>{{ student.email }}</td>
+                            </tr>
+                            <tr>
+                                <th>Phone:</th>
+                                <td>{{ student.phone|default:"Not provided" }}</td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-calendar-check me-2"></i>Today's Attendance</h5>
+            </div>
+            <div class="card-body">
+                {% if today_attendance %}
+                    <div class="text-center">
+                        <div class="mb-3">
+                            {% if today_attendance.status == 'present' %}
+                                <span class="badge bg-success p-3 rounded-circle">
+                                    <i class="fas fa-check fa-2x"></i>
+                                </span>
+                                <h4 class="mt-3 text-success">Present</h4>
+                            {% elif today_attendance.status == 'late' %}
+                                <span class="badge bg-warning p-3 rounded-circle">
+                                    <i class="fas fa-clock fa-2x"></i>
+                                </span>
+                                <h4 class="mt-3 text-warning">Late</h4>
+                            {% else %}
+                                <span class="badge bg-danger p-3 rounded-circle">
+                                    <i class="fas fa-times fa-2x"></i>
+                                </span>
+                                <h4 class="mt-3 text-danger">Absent</h4>
+                            {% endif %}
+                        </div>
+                        
+                        {% if today_attendance.check_in_time %}
+                            <p>Check-in time: <strong>{{ today_attendance.check_in_time }}</strong></p>
+                        {% endif %}
+                        
+                        {% if today_attendance.check_out_time %}
+                            <p>Check-out time: <strong>{{ today_attendance.check_out_time }}</strong></p>
+                        {% endif %}
+                    </div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-calendar-xmark fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">No attendance recorded for today</h5>
+                        <p>Visit the scan page to mark your attendance.</p>
+                        <a href="{% url 'scan' %}" class="btn btn-primary mt-2">
+                            <i class="fas fa-camera me-2"></i> Scan Now
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-chart-pie me-2"></i>Attendance Summary</h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-4">
+                        <div class="p-3">
+                            <h2 class="mb-0">{{ attendance_stats.present }}</h2>
+                            <p class="text-success mb-0">Present</p>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="p-3">
+                            <h2 class="mb-0">{{ attendance_stats.late }}</h2>
+                            <p class="text-warning mb-0">Late</p>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="p-3">
+                            <h2 class="mb-0">{{ attendance_stats.absent }}</h2>
+                            <p class="text-danger mb-0">Absent</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="text-center mt-3">
+                    <p>Attendance Rate: <strong>{{ attendance_stats.rate }}%</strong></p>
+                    <div class="progress">
+                        <div class="progress-bar bg-success" role="progressbar" style="width: {{ attendance_stats.rate }}%" aria-valuenow="{{ attendance_stats.rate }}" aria-valuemin="0" aria-valuemax="100"></div>
+                    </div>
+                </div>
+                
+                <div class="text-center mt-4">
+                    <a href="{% url 'student_attendance' %}" class="btn btn-outline-primary">
+                        <i class="fas fa-list me-2"></i> View Full Attendance History
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

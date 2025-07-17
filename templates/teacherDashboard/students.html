@@ -1,8 +1,9 @@
-{% extends 'base.html' %}
+{% extends 'teacherDashboard/base.html' %}
 {% load static %}
 {% block title %}Students - Smart Presence{% endblock %}
 
 {% block content %}
+{% csrf_token %}
 <div class="container mt-4 students-page">
     <div class="row">
         <div class="col-12">
@@ -172,8 +173,87 @@
     </div>
 </div>
 
+<!-- Edit Student Modal -->
+<div class="modal fade" id="editModal" tabindex="-1" aria-labelledby="editModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editModalLabel">Edit Student</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editStudentForm">
+                    {% csrf_token %}
+                    <input type="hidden" id="editStudentId">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="editName" class="form-label">Full Name</label>
+                                <input type="text" class="form-control" id="editName" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="editRollNumber" class="form-label">Roll Number</label>
+                                <input type="text" class="form-control" id="editRollNumber" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="editEmail" class="form-label">Email</label>
+                                <input type="email" class="form-control" id="editEmail" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="editPhone" class="form-label">Phone (Optional)</label>
+                                <input type="tel" class="form-control" id="editPhone">
+                            </div>
+                            <div class="mb-3">
+                                <label for="editDepartment" class="form-label">Department</label>
+                                <input type="text" class="form-control" id="editDepartment" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="text-center mb-3">
+                                <div id="currentImageContainer" class="mb-3">
+                                    <p class="mb-2">Current Image:</p>
+                                    <img id="currentStudentImage" src="" alt="Student" class="img-fluid rounded-circle" style="max-width: 150px; max-height: 150px;">
+                                </div>
+                                <div class="mb-3">
+                                    <p>Update Image (Optional):</p>
+                                    <div class="camera-wrapper mb-2">
+                                        <video id="editWebcam" class="camera-element" autoplay playsinline></video>
+                                        <canvas id="editCanvas" class="camera-element" style="display: none;"></canvas>
+                                        <img id="editPreview" class="camera-element" style="display: none;">
+                                    </div>
+                                    <div class="camera-controls">
+                                        <div class="btn-group w-100">
+                                            <button type="button" class="btn btn-primary" id="startEditCamera">
+                                                <i class="fas fa-camera"></i> Start Camera
+                                            </button>
+                                            <button type="button" class="btn btn-info" id="captureEditPhoto" disabled>
+                                                <i class="fas fa-camera-retro"></i> Capture
+                                            </button>
+                                            <button type="button" class="btn btn-secondary" id="retakeEditPhoto" style="display: none;">
+                                                <i class="fas fa-redo"></i> Retake
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="editErrorMessage" class="alert alert-danger" style="display: none;"></div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="saveEditButton">Save Changes</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 let studentToDelete = null;
+let editStudentId = null;
+let editImageCapture = null;
+let editStream = null;
 
 function viewStudent(studentId) {
     // Fetch and display student details
@@ -184,14 +264,16 @@ function viewStudent(studentId) {
                 <div class="row">
                     <div class="col-md-4 text-center">
                         ${data.image ? 
-                            `<img src="${data.image}" alt="${data.name}" class="img-fluid rounded-circle" style="max-width: 150px;">` :
+                            `<div style="width: 150px; height: 150px; border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center; margin: 0 auto;">
+                                <img src="${data.image}" alt="${data.name}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">
+                            </div>` :
                             `<div class="bg-secondary rounded-circle d-flex align-items-center justify-content-center text-white mx-auto" style="width: 150px; height: 150px;">
                                 <i class="fas fa-user fa-4x"></i>
                             </div>`
                         }
                     </div>
                     <div class="col-md-8">
-                        <table class="table table-borderless">
+                        <table class="table table-borderless table-primary">
                             <tr><th>Name:</th><td>${data.name}</td></tr>
                             <tr><th>Roll Number:</th><td>${data.roll_number}</td></tr>
                             <tr><th>Email:</th><td>${data.email}</td></tr>
@@ -211,8 +293,53 @@ function viewStudent(studentId) {
 }
 
 function editStudent(studentId) {
-    // Redirect to edit page (to be implemented)
-    alert('Edit functionality will be implemented soon');
+    editStudentId = studentId;
+    
+    // Reset form and error message
+    document.getElementById('editErrorMessage').style.display = 'none';
+    document.getElementById('editErrorMessage').textContent = '';
+    
+    // Stop any previous stream
+    if (editStream) {
+        editStream.getTracks().forEach(track => track.stop());
+        editStream = null;
+    }
+    
+    // Reset camera elements
+    document.getElementById('editWebcam').style.display = 'block';
+    document.getElementById('editCanvas').style.display = 'none';
+    document.getElementById('editPreview').style.display = 'none';
+    document.getElementById('startEditCamera').disabled = false;
+    document.getElementById('captureEditPhoto').disabled = true;
+    document.getElementById('retakeEditPhoto').style.display = 'none';
+    
+    // Fetch student data
+    fetch(`/api/student/${studentId}/`)
+        .then(response => response.json())
+        .then(data => {
+            // Populate form fields
+            document.getElementById('editStudentId').value = data.id;
+            document.getElementById('editName').value = data.name;
+            document.getElementById('editRollNumber').value = data.roll_number;
+            document.getElementById('editEmail').value = data.email;
+            document.getElementById('editPhone').value = data.phone || '';
+            document.getElementById('editDepartment').value = data.department;
+            
+            // Show current image if available
+            if (data.image) {
+                document.getElementById('currentImageContainer').style.display = 'block';
+                document.getElementById('currentStudentImage').src = data.image;
+            } else {
+                document.getElementById('currentImageContainer').style.display = 'none';
+            }
+            
+            // Show modal
+            new bootstrap.Modal(document.getElementById('editModal')).show();
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error loading student data for editing');
+        });
 }
 
 function deleteStudent(studentId, studentName) {
@@ -220,6 +347,131 @@ function deleteStudent(studentId, studentName) {
     document.getElementById('deleteStudentName').textContent = studentName;
     new bootstrap.Modal(document.getElementById('deleteModal')).show();
 }
+
+// Edit student camera functions
+document.getElementById('startEditCamera').addEventListener('click', function() {
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(function(stream) {
+                const video = document.getElementById('editWebcam');
+                video.srcObject = stream;
+                editStream = stream;
+                video.play();
+                document.getElementById('captureEditPhoto').disabled = false;
+                document.getElementById('startEditCamera').disabled = true;
+            })
+            .catch(function(error) {
+                console.error("Camera error: ", error);
+                alert("Could not access the camera. Please make sure it's connected and permissions are granted.");
+            });
+    } else {
+        alert("Sorry, your browser does not support camera access.");
+    }
+});
+
+document.getElementById('captureEditPhoto').addEventListener('click', function() {
+    const video = document.getElementById('editWebcam');
+    const canvas = document.getElementById('editCanvas');
+    const preview = document.getElementById('editPreview');
+    
+    // Set canvas dimensions to match video
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    
+    // Draw video frame to canvas
+    const context = canvas.getContext('2d');
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    
+    // Convert canvas to image for preview
+    preview.src = canvas.toDataURL('image/jpeg');
+    
+    // Show preview, hide video
+    video.style.display = 'none';
+    canvas.style.display = 'none';
+    preview.style.display = 'block';
+    
+    // Update buttons
+    document.getElementById('captureEditPhoto').disabled = true;
+    document.getElementById('retakeEditPhoto').style.display = 'inline-block';
+    
+    // Store image data
+    editImageCapture = canvas.toDataURL('image/jpeg');
+});
+
+document.getElementById('retakeEditPhoto').addEventListener('click', function() {
+    // Reset to camera view
+    document.getElementById('editWebcam').style.display = 'block';
+    document.getElementById('editPreview').style.display = 'none';
+    document.getElementById('captureEditPhoto').disabled = false;
+    document.getElementById('retakeEditPhoto').style.display = 'none';
+    editImageCapture = null;
+});
+
+document.getElementById('saveEditButton').addEventListener('click', function() {
+    if (!editStudentId) return;
+    
+    const name = document.getElementById('editName').value;
+    const rollNumber = document.getElementById('editRollNumber').value;
+    const email = document.getElementById('editEmail').value;
+    const phone = document.getElementById('editPhone').value;
+    const department = document.getElementById('editDepartment').value;
+    
+    // Validate form
+    if (!name || !rollNumber || !email || !department) {
+        document.getElementById('editErrorMessage').textContent = 'Please fill all required fields.';
+        document.getElementById('editErrorMessage').style.display = 'block';
+        return;
+    }
+    
+    // Prepare data for API
+    const data = {
+        name: name,
+        roll_number: rollNumber,
+        email: email,
+        phone: phone,
+        department: department
+    };
+    
+    // Add image if captured
+    if (editImageCapture) {
+        data.webcam_image = editImageCapture;
+    }
+    
+    // Send update request
+    fetch(`/api/student/${editStudentId}/update/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Close modal and reload page to show updated data
+            bootstrap.Modal.getInstance(document.getElementById('editModal')).hide();
+            location.reload();
+        } else {
+            // Show error message
+            document.getElementById('editErrorMessage').textContent = data.message;
+            document.getElementById('editErrorMessage').style.display = 'block';
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        document.getElementById('editErrorMessage').textContent = 'An error occurred while updating the student.';
+        document.getElementById('editErrorMessage').style.display = 'block';
+    });
+});
+
+// Clean up camera when modal is closed
+document.getElementById('editModal').addEventListener('hidden.bs.modal', function () {
+    if (editStream) {
+        editStream.getTracks().forEach(track => track.stop());
+        editStream = null;
+    }
+});
 
 document.getElementById('confirmDelete').addEventListener('click', function() {
     if (studentToDelete) {

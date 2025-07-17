@@ -1,4 +1,4 @@
-{% extends 'base.html' %}
+{% extends 'landing_base.html' %}
 {% load static %}
 {% block title %}Scan Attendance - Smart Presence{% endblock %}
 
@@ -53,9 +53,7 @@
                                 <button type="button" class="btn btn-info me-2" id="toggleDetection" style="display: none;">
                                     <i class="fas fa-search"></i> Start Detection
                                 </button>
-                                <button type="button" class="btn btn-secondary" id="captureManual" style="display: none;">
-                                    <i class="fas fa-camera"></i> Manual Capture
-                                </button>
+
                             </div>
 
                             <!-- Detection Status -->
@@ -356,7 +354,6 @@ function stopDetection() {
 }
 
 function simulateDetection() {
-    // This is a simulation - replace with actual face recognition
     const shouldDetect = Math.random() > 0.7; // 30% chance of detection
     
     if (shouldDetect) {

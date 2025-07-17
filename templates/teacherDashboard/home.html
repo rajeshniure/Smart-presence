@@ -1,4 +1,4 @@
-{% extends 'base.html' %}
+{% extends 'teacherDashboard/base.html' %}
 {% block title %}Home - Smart Presence{% endblock %}
 
 {% block content %}
@@ -64,9 +64,9 @@
             <div class="card h-100 hover-shadow">
                 <div class="card-body text-center">
                     <i class="fas fa-qrcode fa-2x text-success mb-3"></i>
-                    <h5 class="card-title">Scan Attendance</h5>
-                    <p class="card-text text-muted">Start the attendance process with a live scan.</p>
-                    <a href="{% url 'scan' %}" class="btn btn-success mt-2">Start Scanning</a>
+                    <h5 class="card-title">view Student</h5>
+                    <p class="card-text text-muted">know the details of the studennts</p>
+                    <a href="{% url 'students' %}" class="btn btn-success mt-2">Students</a>
                 </div>
             </div>
         </div>

@@ -1,9 +1,9 @@
-{% extends 'base.html' %}
+{% extends 'teacherDashboard/base.html' %}
 {% load static %}
 {% block title %}Register Student - Smart Presence{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
+<div class="container mt-4" >
     <div class="row justify-content-center">
         <div class="col-md-10">
             <div class="card shadow">
@@ -24,30 +24,38 @@
                         {% csrf_token %}
                         <div class="row">
                             <!-- Student Information -->
-                            <div class="col-md-6">
-                                <h5 class="text-primary mb-3">Student Information</h5>
-                                
-                                <div class="mb-3">
+                            <div class="col-md-6">                                
+                                <div class="mb-2">
                                     <label for="name" class="form-label">Full Name *</label>
                                     <input type="text" class="form-control" id="name" name="name" required>
                                 </div>
 
-                                <div class="mb-3">
+                                <div class="mb-2">
                                     <label for="roll_number" class="form-label">Roll Number *</label>
                                     <input type="text" class="form-control" id="roll_number" name="roll_number" required>
                                 </div>
 
-                                <div class="mb-3">
+                                <div class="mb-2">
                                     <label for="email" class="form-label">Email Address *</label>
                                     <input type="email" class="form-control" id="email" name="email" required>
                                 </div>
 
-                                <div class="mb-3">
+                                <div class="mb-2">
                                     <label for="phone" class="form-label">Phone Number</label>
                                     <input type="tel" class="form-control" id="phone" name="phone">
                                 </div>
 
-                                <div class="mb-3">
+                                <div class="mb-2">
+                                    <label for="password" class="form-label">Password *</label>
+                                    <input type="password" class="form-control" id="password" name="password" required>
+                                    <div class="form-text">Set a password for student login. This is required for dashboard access.</div>
+                                </div>
+                                <div class="mb-2">
+                                    <label for="confirm_password" class="form-label">Confirm Password *</label>
+                                    <input type="password" class="form-control" id="confirm_password" name="confirm_password" required>
+                                </div>
+
+                                <div class="mb-2">
                                     <label for="department" class="form-label">Department *</label>
                                     <select class="form-select" id="department" name="department" required>
                                         <option value="">Select Department</option>
@@ -62,9 +70,7 @@
                             </div>
 
                             <!-- Image Capture -->
-                            <div class="col-md-6">
-                                <h5 class="text-primary mb-3">Photo Capture</h5>
-                                
+                            <div class="col-md-6">                                
                                 <!-- Image Upload -->
                                 <div class="mb-3">
                                     <label for="image" class="form-label">Upload Photo</label>
@@ -284,10 +290,16 @@ function stopWebcam() {
 document.getElementById('studentForm').addEventListener('submit', function(e) {
     const fileInput = document.getElementById('image');
     const webcamInput = document.getElementById('webcam_image');
-    
+    const password = document.getElementById('password').value;
+    const confirmPassword = document.getElementById('confirm_password').value;
     if (!fileInput.files.length && !webcamInput.value) {
         e.preventDefault();
         alert('Please upload an image or capture one using the webcam.');
+        return false;
+    }
+    if (password !== confirmPassword) {
+        e.preventDefault();
+        alert('Passwords do not match.');
         return false;
     }
 });
