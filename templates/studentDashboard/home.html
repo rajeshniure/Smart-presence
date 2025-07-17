@@ -1,11 +1,12 @@
-{% extends 'studentDashboard/base.html' %}
+{% extends 'base.html' %}
 {% load static %}
 
 {% block title %}Home - Student Dashboard{% endblock %}
 
 {% block content %}
+<div class="container py-5">
 <div class="row">
-    <div class="col-12 mb-4">
+    <div class="col-12 my-4">
         <div class="card">
             <div class="card-header">
                 <h4 class="mb-0"><i class="fas fa-user-circle me-2"></i>Welcome, {{ student.name }}</h4>
@@ -23,9 +24,9 @@
                             </div>
                         {% endif %}
                     </div>
-                    <div class="col-md-8">
+                    <div class="col-md-6 ">
                         <h5>Your Information</h5>
-                        <table class="table table-borderless">
+                        <table class="table table-info table-bordered table-hover">
                             <tr>
                                 <th width="30%">Roll Number:</th>
                                 <td>{{ student.roll_number }}</td>
@@ -140,5 +141,6 @@
             </div>
         </div>
     </div>
+</div>
 </div>
 {% endblock %} 

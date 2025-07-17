@@ -11,14 +11,6 @@
                     <h3 class="mb-0"><i class="fas fa-user-plus"></i> Student Registration</h3>
                 </div>
                 <div class="card-body">
-                    {% if messages %}
-                        {% for message in messages %}
-                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-                                {{ message }}
-                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                            </div>
-                        {% endfor %}
-                    {% endif %}
 
                     <form method="post" enctype="multipart/form-data" id="studentForm">
                         {% csrf_token %}

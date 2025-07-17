@@ -26,6 +26,11 @@ def is_student(user):
 
 # Landing page view
 def landing(request):
+    if request.user.is_authenticated:
+        if hasattr(request.user, 'student_profile'):
+            return redirect('student_home')
+        elif request.user.is_staff or request.user.is_superuser:
+            return redirect('home')
     return render(request, "landing_page.html")
 
 # Authentication views
@@ -164,7 +169,7 @@ def register(request):
             elif 'email' in str(e):
                 messages.error(request, 'A student with this email already exists.')
             else:
-                messages.error(request, 'An error occurred during registration.')
+                messages.error(request, f'An error occurred during registration: {str(e)}')
         except Exception as e:
             messages.error(request, f'An error occurred: {str(e)}')
     

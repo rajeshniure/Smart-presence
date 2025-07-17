@@ -1,9 +1,10 @@
-{% extends 'studentDashboard/base.html' %}
+{% extends 'base.html' %}
 {% load static %}
 
 {% block title %}My Attendance - Student Dashboard{% endblock %}
 
 {% block content %}
+<div class="container py-5">
 <div class="row">
     <div class="col-12 mb-4">
         <div class="card">
@@ -66,7 +67,7 @@
                                     <th>Status</th>
                                     <th>Check-in Time</th>
                                     <th>Check-out Time</th>
-                                    <th>Details</th>
+                                 
                                 </tr>
                             </thead>
                             <tbody>
@@ -84,12 +85,7 @@
                                         </td>
                                         <td>{{ record.check_in_time|default:"-" }}</td>
                                         <td>{{ record.check_out_time|default:"-" }}</td>
-                                        <td>
-                                            <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#detailsModal" 
-                                                    data-record-id="{{ record.id }}" data-record-date="{{ record.date }}">
-                                                <i class="fas fa-info-circle"></i> Details
-                                            </button>
-                                        </td>
+
                                     </tr>
                                 {% endfor %}
                             </tbody>
@@ -189,6 +185,7 @@
             </div>
         </div>
     </div>
+</div>
 </div>
 
 {% block extra_js %}
