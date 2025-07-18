@@ -17,6 +17,21 @@ from PIL import Image
 from datetime import date, datetime, timedelta
 import calendar
 
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status as http_status
+from django.utils import timezone
+from .models import Attendance, Student, Course
+from .serializers import AttendanceSerializer
+from .utils.face_pipeline import detect_and_recognize, test_pipeline
+import os
+from django.core.files.storage import default_storage
+import logging
+from django.utils.decorators import method_decorator
+
+# Set up logging
+logger = logging.getLogger(__name__)
+
 # Helper functions
 def is_admin(user):
     return user.is_staff or user.is_superuser
@@ -533,3 +548,191 @@ def attendance_emotions_api(request, record_id):
     }
     
     return JsonResponse(data)
+
+
+
+
+def scan_view(request):
+    if request.method == 'POST' and request.FILES.get('image'):
+        image_file = request.FILES['image']
+        temp_path = default_storage.save('temp_scan.jpg', image_file)
+        abs_path = default_storage.path(temp_path)
+        results = detect_and_recognize(abs_path)
+        # Optionally, delete temp file after processing
+        # default_storage.delete(temp_path)
+        return render(request, 'scan.html', {'results': results})
+    return render(request, 'scan.html')
+
+class ScanAPIView(APIView):
+    authentication_classes = []  # Disable authentication
+    permission_classes = []      # Disable permissions
+    
+    def post(self, request, *args, **kwargs):
+        try:
+            logger.info("Scan API called")
+            
+            # Check if image file is provided
+            image_file = request.FILES.get('image')
+            if not image_file:
+                logger.error("No image file provided in request")
+                return Response({'error': 'No image provided.'}, status=http_status.HTTP_400_BAD_REQUEST)
+            
+            logger.info(f"Received image: {image_file.name}, size: {image_file.size}")
+            
+            # Save image temporarily
+            try:
+                temp_path = default_storage.save('temp_scan.jpg', image_file)
+                abs_path = default_storage.path(temp_path)
+                logger.info(f"Image saved to: {abs_path}")
+            except Exception as e:
+                logger.error(f"Error saving image: {str(e)}")
+                return Response({'error': 'Error processing image.'}, status=http_status.HTTP_500_INTERNAL_SERVER_ERROR)
+            
+            # Run face detection and recognition
+            try:
+                logger.info("Starting face detection and recognition...")
+                results = detect_and_recognize(abs_path)
+                logger.info(f"Detection/recognition results: {results}")
+            except Exception as e:
+                logger.error(f"Error in face detection/recognition: {str(e)}")
+                return Response({'error': 'Error in face detection/recognition.'}, status=http_status.HTTP_500_INTERNAL_SERVER_ERROR)
+            finally:
+                # Clean up temp file
+                try:
+                    os.remove(abs_path)
+                    logger.info("Temporary image file cleaned up")
+                except:
+                    pass
+            
+            # Process results and mark attendance
+            response_data = []
+            today = timezone.now().date()
+            
+            for face in results:
+                try:
+                    name = face['name']
+                    box = face['box']
+                    logger.info(f"Processing face: {name}, box: {box}")
+                    
+                    # Find student
+                    student = Student.objects.filter(name=name).first()
+                    attendance_status = 'unknown'
+                    attendance_id = None
+                    attendance_details = None
+                    
+                    if student:
+                        logger.info(f"Student found: {student.name}")
+                        current_time = timezone.now().time()
+                        current_date = timezone.now().date()
+                        
+                        # Check if attendance already exists for today
+                        existing_attendance = Attendance.objects.filter(
+                            student=student,
+                            date=current_date,
+                            course=None
+                        ).first()
+                        
+                        if existing_attendance:
+                            # Attendance already marked today
+                            attendance_status = 'already_marked'
+                            attendance_id = existing_attendance.id
+                            attendance_details = {
+                                'status': existing_attendance.status,
+                                'check_in_time': existing_attendance.check_in_time.strftime('%H:%M') if existing_attendance.check_in_time else None,
+                                'check_out_time': existing_attendance.check_out_time.strftime('%H:%M') if existing_attendance.check_out_time else None
+                            }
+                            logger.info(f"Attendance already marked: {existing_attendance.status}")
+                        else:
+                            # Mark new attendance with time-based logic
+                            from .models import AttendanceSettings
+                            settings = AttendanceSettings.get_settings()
+                            
+                            # Determine attendance status based on current time
+                            if current_time <= settings.on_time_threshold:
+                                attendance_status_value = 'present'
+                                logger.info(f"Marking as present (time: {current_time}, threshold: {settings.on_time_threshold})")
+                            elif current_time <= settings.late_threshold:
+                                attendance_status_value = 'late'
+                                logger.info(f"Marking as late (time: {current_time}, threshold: {settings.late_threshold})")
+                            else:
+                                attendance_status_value = 'absent'
+                                logger.info(f"Marking as absent (time: {current_time}, threshold: {settings.absent_threshold})")
+                            
+                            # Create new attendance record
+                            att = Attendance.objects.create(
+                                student=student,
+                                date=current_date,
+                                course=None,
+                                check_in_time=current_time,
+                                status=attendance_status_value,
+                                confidence=1.0
+                            )
+                            
+                            attendance_status = attendance_status_value
+                            attendance_id = att.id
+                            attendance_details = {
+                                'status': attendance_status_value,
+                                'check_in_time': current_time.strftime('%H:%M'),
+                                'check_out_time': None
+                            }
+                            logger.info(f"New attendance marked: {attendance_status_value}")
+                    else:
+                        logger.warning(f"Student not found for name: {name}")
+                    
+                    # Prepare student data
+                    student_data = {
+                        'name': name,
+                        'box': box,
+                        'attendance_status': attendance_status,
+                        'attendance_id': attendance_id,
+                        'attendance_details': attendance_details,
+                    }
+                    
+                    # Add student details if found
+                    if student:
+                        student_data.update({
+                            'roll_number': student.roll_number,
+                            'department': student.department,
+                            'photo_url': student.image.url if student.image else None,
+                        })
+                    else:
+                        # For unknown faces, still provide structure
+                        student_data.update({
+                            'roll_number': None,
+                            'department': None,
+                            'photo_url': None,
+                        })
+                    
+                    response_data.append(student_data)
+                    
+                except Exception as e:
+                    logger.error(f"Error processing face result: {str(e)}")
+                    continue
+            
+            logger.info(f"Final response data: {response_data}")
+            return Response({'results': response_data}, status=http_status.HTTP_200_OK)
+            
+        except Exception as e:
+            logger.error(f"Unexpected error in ScanAPIView: {str(e)}")
+            return Response({'error': 'Internal server error.'}, status=http_status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+# Add a test endpoint for debugging
+class TestPipelineAPIView(APIView):
+    authentication_classes = []  # Disable authentication
+    permission_classes = []      # Disable permissions
+    
+    def get(self, request, *args, **kwargs):
+        """Test the face detection and recognition pipeline"""
+        try:
+            logger.info("Testing face detection and recognition pipeline...")
+            success = test_pipeline()
+            return Response({
+                'success': success,
+                'message': 'Pipeline test completed successfully' if success else 'Pipeline test failed'
+            }, status=http_status.HTTP_200_OK)
+        except Exception as e:
+            logger.error(f"Error testing pipeline: {str(e)}")
+            return Response({
+                'success': False,
+                'error': str(e)
+            }, status=http_status.HTTP_500_INTERNAL_SERVER_ERROR)
