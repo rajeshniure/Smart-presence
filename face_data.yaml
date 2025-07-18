@@ -1,0 +1,5 @@
+
+train: datasets/face detection/images/train
+val: datasets/face detection/images/val
+nc: 1
+names: ['face']
