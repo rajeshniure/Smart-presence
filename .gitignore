@@ -8,6 +8,14 @@ db.sqlite3
 db.sqlite3-journal
 media/
 
+
+*.h5
+*.zip
+*.jpg
+*.png
+/datasets/
+/ml_models/saved_models/
+
 # Python
 *.py[cod]
 *$py.class
