@@ -41,11 +41,6 @@ def is_student(user):
 
 # Landing page view
 def landing(request):
-    if request.user.is_authenticated:
-        if hasattr(request.user, 'student_profile'):
-            return redirect('student_home')
-        elif request.user.is_staff or request.user.is_superuser:
-            return redirect('home')
     return render(request, "landing_page.html")
 
 # Authentication views
@@ -1048,3 +1043,38 @@ class CheckOutAPIView(APIView):
         except Exception as e:
             logger.error(f"Unexpected error in CheckOutAPIView: {str(e)}")
             return Response({'error': 'Internal server error.'}, status=http_status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class RetrainModelAPIView(APIView):
+    """API endpoint to manually trigger model retraining"""
+    
+    def post(self, request, *args, **kwargs):
+        """Trigger manual model retraining"""
+        try:
+            from django.core.management import call_command
+            import threading
+            
+            def retrain_async():
+                try:
+                    call_command('retrain_facenet', '--force', verbosity=1)
+                    # Reload models after retraining
+                    from .utils.face_pipeline import reload_models
+                    reload_models()
+                except Exception as e:
+                    logger.error(f"Error in manual retraining: {str(e)}")
+            
+            # Start retraining in background thread
+            thread = threading.Thread(target=retrain_async)
+            thread.daemon = True
+            thread.start()
+            
+            return Response({
+                'message': 'Model retraining started in background',
+                'status': 'processing'
+            }, status=http_status.HTTP_200_OK)
+            
+        except Exception as e:
+            logger.error(f"Error triggering manual retraining: {str(e)}")
+            return Response({
+                'error': 'Failed to start retraining'
+            }, status=http_status.HTTP_500_INTERNAL_SERVER_ERROR)
