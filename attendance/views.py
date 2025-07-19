@@ -509,18 +509,27 @@ def student_update_api(request, student_id):
 
 @csrf_exempt
 def student_delete_api(request, student_id):
-    """API endpoint to delete a student"""
+    """API endpoint to delete a student and their associated user account"""
     if request.method == 'POST':
         try:
             student = get_object_or_404(Student, id=student_id)
             student_name = student.name
+            
+            # Delete the associated user account if it exists
+            if student.user:
+                user_username = student.user.username
+                student.user.delete()
+                logger.info(f"Deleted user account: {user_username}")
+            
+            # Delete the student record
             student.delete()
             
             return JsonResponse({
                 'success': True,
-                'message': f'Student {student_name} deleted successfully'
+                'message': f'Student {student_name} and their user account deleted successfully'
             })
         except Exception as e:
+            logger.error(f"Error deleting student {student_id}: {str(e)}")
             return JsonResponse({
                 'success': False,
                 'message': f'Error deleting student: {str(e)}'
@@ -606,7 +615,8 @@ class ScanAPIView(APIView):
             
             # Process results and mark attendance
             response_data = []
-            today = timezone.now().date()
+            current_datetime = timezone.localtime(timezone.now())
+            today = current_datetime.date()
             
             for face in results:
                 try:
@@ -622,8 +632,9 @@ class ScanAPIView(APIView):
                     
                     if student:
                         logger.info(f"Student found: {student.name}")
-                        current_time = timezone.now().time()
-                        current_date = timezone.now().date()
+                        current_datetime = timezone.localtime(timezone.now())
+                        current_time = current_datetime.time()
+                        current_date = current_datetime.date()
                         
                         # Check if attendance already exists for today
                         existing_attendance = Attendance.objects.filter(
@@ -736,3 +747,304 @@ class TestPipelineAPIView(APIView):
                 'success': False,
                 'error': str(e)
             }, status=http_status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class CheckInAPIView(APIView):
+    authentication_classes = []  # Disable authentication
+    permission_classes = []      # Disable permissions
+    
+    def post(self, request, *args, **kwargs):
+        """API endpoint for manual check-in"""
+        try:
+            logger.info("Check-in API called")
+            
+            # Check if image file is provided
+            image_file = request.FILES.get('image')
+            if not image_file:
+                logger.error("No image file provided in request")
+                return Response({'error': 'No image provided.'}, status=http_status.HTTP_400_BAD_REQUEST)
+            
+            logger.info(f"Received image: {image_file.name}, size: {image_file.size}")
+            
+            # Save image temporarily
+            try:
+                temp_path = default_storage.save('temp_checkin.jpg', image_file)
+                abs_path = default_storage.path(temp_path)
+                logger.info(f"Image saved to: {abs_path}")
+            except Exception as e:
+                logger.error(f"Error saving image: {str(e)}")
+                return Response({'error': 'Error processing image.'}, status=http_status.HTTP_500_INTERNAL_SERVER_ERROR)
+            
+            # Run face detection and recognition
+            try:
+                logger.info("Starting face detection and recognition for check-in...")
+                results = detect_and_recognize(abs_path)
+                logger.info(f"Detection/recognition results: {results}")
+            except Exception as e:
+                logger.error(f"Error in face detection/recognition: {str(e)}")
+                return Response({'error': 'Error in face detection/recognition.'}, status=http_status.HTTP_500_INTERNAL_SERVER_ERROR)
+            finally:
+                # Clean up temp file
+                try:
+                    os.remove(abs_path)
+                    logger.info("Temporary image file cleaned up")
+                except:
+                    pass
+            
+            # Process results and mark check-in
+            response_data = []
+            current_datetime = timezone.localtime(timezone.now())
+            today = current_datetime.date()
+            current_time = current_datetime.time()
+            
+            for face in results:
+                try:
+                    name = face['name']
+                    box = face['box']
+                    logger.info(f"Processing face for check-in: {name}, box: {box}")
+                    
+                    # Find student
+                    student = Student.objects.filter(name=name).first()
+                    attendance_status = 'unknown'
+                    attendance_id = None
+                    attendance_details = None
+                    
+                    if student:
+                        logger.info(f"Student found for check-in: {student.name}")
+                        
+                        # Check if attendance already exists for today
+                        existing_attendance = Attendance.objects.filter(
+                            student=student,
+                            date=today,
+                            course=None
+                        ).first()
+                        
+                        if existing_attendance:
+                            if existing_attendance.check_in_time:
+                                # Already checked in today
+                                attendance_status = 'already_checked_in'
+                                attendance_id = existing_attendance.id
+                                attendance_details = {
+                                    'status': existing_attendance.status,
+                                    'check_in_time': existing_attendance.check_in_time.strftime('%H:%M'),
+                                    'check_out_time': existing_attendance.check_out_time.strftime('%H:%M') if existing_attendance.check_out_time else None
+                                }
+                                logger.info(f"Student already checked in: {existing_attendance.check_in_time}")
+                            else:
+                                # Has attendance record but no check-in time (shouldn't happen normally)
+                                attendance_status = 'error'
+                                logger.warning(f"Student has attendance record but no check-in time")
+                        else:
+                            # Create new attendance record for check-in
+                            from .models import AttendanceSettings
+                            settings = AttendanceSettings.get_settings()
+                            
+                            # Determine attendance status based on current time
+                            if current_time <= settings.on_time_threshold:
+                                attendance_status_value = 'present'
+                                logger.info(f"Check-in as present (time: {current_time}, threshold: {settings.on_time_threshold})")
+                            elif current_time <= settings.late_threshold:
+                                attendance_status_value = 'late'
+                                logger.info(f"Check-in as late (time: {current_time}, threshold: {settings.late_threshold})")
+                            else:
+                                attendance_status_value = 'absent'
+                                logger.info(f"Check-in as absent (time: {current_time}, threshold: {settings.absent_threshold})")
+                            
+                            # Create new attendance record
+                            att = Attendance.objects.create(
+                                student=student,
+                                date=today,
+                                course=None,
+                                check_in_time=current_time,
+                                status=attendance_status_value,
+                                confidence=1.0
+                            )
+                            
+                            attendance_status = 'checked_in'
+                            attendance_id = att.id
+                            attendance_details = {
+                                'status': attendance_status_value,
+                                'check_in_time': current_time.strftime('%H:%M'),
+                                'check_out_time': None
+                            }
+                            logger.info(f"New check-in marked: {attendance_status_value}")
+                    else:
+                        logger.warning(f"Student not found for check-in: {name}")
+                    
+                    # Prepare student data
+                    student_data = {
+                        'name': name,
+                        'box': box,
+                        'attendance_status': attendance_status,
+                        'attendance_id': attendance_id,
+                        'attendance_details': attendance_details,
+                    }
+                    
+                    # Add student details if found
+                    if student:
+                        student_data.update({
+                            'roll_number': student.roll_number,
+                            'department': student.department,
+                            'photo_url': student.image.url if student.image else None,
+                        })
+                    else:
+                        # For unknown faces, still provide structure
+                        student_data.update({
+                            'roll_number': None,
+                            'department': None,
+                            'photo_url': None,
+                        })
+                    
+                    response_data.append(student_data)
+                    
+                except Exception as e:
+                    logger.error(f"Error processing face result for check-in: {str(e)}")
+                    continue
+            
+            logger.info(f"Final check-in response data: {response_data}")
+            return Response({'results': response_data}, status=http_status.HTTP_200_OK)
+            
+        except Exception as e:
+            logger.error(f"Unexpected error in CheckInAPIView: {str(e)}")
+            return Response({'error': 'Internal server error.'}, status=http_status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class CheckOutAPIView(APIView):
+    authentication_classes = []  # Disable authentication
+    permission_classes = []      # Disable permissions
+    
+    def post(self, request, *args, **kwargs):
+        """API endpoint for manual check-out"""
+        try:
+            logger.info("Check-out API called")
+            
+            # Check if image file is provided
+            image_file = request.FILES.get('image')
+            if not image_file:
+                logger.error("No image file provided in request")
+                return Response({'error': 'No image provided.'}, status=http_status.HTTP_400_BAD_REQUEST)
+            
+            logger.info(f"Received image: {image_file.name}, size: {image_file.size}")
+            
+            # Save image temporarily
+            try:
+                temp_path = default_storage.save('temp_checkout.jpg', image_file)
+                abs_path = default_storage.path(temp_path)
+                logger.info(f"Image saved to: {abs_path}")
+            except Exception as e:
+                logger.error(f"Error saving image: {str(e)}")
+                return Response({'error': 'Error processing image.'}, status=http_status.HTTP_500_INTERNAL_SERVER_ERROR)
+            
+            # Run face detection and recognition
+            try:
+                logger.info("Starting face detection and recognition for check-out...")
+                results = detect_and_recognize(abs_path)
+                logger.info(f"Detection/recognition results: {results}")
+            except Exception as e:
+                logger.error(f"Error in face detection/recognition: {str(e)}")
+                return Response({'error': 'Error in face detection/recognition.'}, status=http_status.HTTP_500_INTERNAL_SERVER_ERROR)
+            finally:
+                # Clean up temp file
+                try:
+                    os.remove(abs_path)
+                    logger.info("Temporary image file cleaned up")
+                except:
+                    pass
+            
+            # Process results and mark check-out
+            response_data = []
+            current_datetime = timezone.localtime(timezone.now())
+            today = current_datetime.date()
+            current_time = current_datetime.time()
+            
+            for face in results:
+                try:
+                    name = face['name']
+                    box = face['box']
+                    logger.info(f"Processing face for check-out: {name}, box: {box}")
+                    
+                    # Find student
+                    student = Student.objects.filter(name=name).first()
+                    attendance_status = 'unknown'
+                    attendance_id = None
+                    attendance_details = None
+                    
+                    if student:
+                        logger.info(f"Student found for check-out: {student.name}")
+                        
+                        # Check if attendance exists for today
+                        existing_attendance = Attendance.objects.filter(
+                            student=student,
+                            date=today,
+                            course=None
+                        ).first()
+                        
+                        if existing_attendance:
+                            if existing_attendance.check_out_time:
+                                # Already checked out today
+                                attendance_status = 'already_checked_out'
+                                attendance_id = existing_attendance.id
+                                attendance_details = {
+                                    'status': existing_attendance.status,
+                                    'check_in_time': existing_attendance.check_in_time.strftime('%H:%M') if existing_attendance.check_in_time else None,
+                                    'check_out_time': existing_attendance.check_out_time.strftime('%H:%M')
+                                }
+                                logger.info(f"Student already checked out: {existing_attendance.check_out_time}")
+                            elif existing_attendance.check_in_time:
+                                # Has check-in but no check-out - mark check-out
+                                existing_attendance.check_out_time = current_time
+                                existing_attendance.save()
+                                
+                                attendance_status = 'checked_out'
+                                attendance_id = existing_attendance.id
+                                attendance_details = {
+                                    'status': existing_attendance.status,
+                                    'check_in_time': existing_attendance.check_in_time.strftime('%H:%M'),
+                                    'check_out_time': current_time.strftime('%H:%M')
+                                }
+                                logger.info(f"Check-out marked: {current_time}")
+                            else:
+                                # Has attendance record but no check-in time (shouldn't happen normally)
+                                attendance_status = 'error'
+                                logger.warning(f"Student has attendance record but no check-in time")
+                        else:
+                            # No attendance record for today
+                            attendance_status = 'no_check_in'
+                            logger.warning(f"No check-in record found for student: {student.name}")
+                    
+                    # Prepare student data
+                    student_data = {
+                        'name': name,
+                        'box': box,
+                        'attendance_status': attendance_status,
+                        'attendance_id': attendance_id,
+                        'attendance_details': attendance_details,
+                    }
+                    
+                    # Add student details if found
+                    if student:
+                        student_data.update({
+                            'roll_number': student.roll_number,
+                            'department': student.department,
+                            'photo_url': student.image.url if student.image else None,
+                        })
+                    else:
+                        # For unknown faces, still provide structure
+                        student_data.update({
+                            'roll_number': None,
+                            'department': None,
+                            'photo_url': None,
+                        })
+                    
+                    response_data.append(student_data)
+                    
+                except Exception as e:
+                    logger.error(f"Error processing face result for check-out: {str(e)}")
+                    continue
+            
+            logger.info(f"Final check-out response data: {response_data}")
+            return Response({'results': response_data}, status=http_status.HTTP_200_OK)
+            
+        except Exception as e:
+            logger.error(f"Unexpected error in CheckOutAPIView: {str(e)}")
+            return Response({'error': 'Internal server error.'}, status=http_status.HTTP_500_INTERNAL_SERVER_ERROR)
