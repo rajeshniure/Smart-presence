@@ -257,3 +257,7 @@ Thumbs.db
 training_matrix_demo/
 ml_implementation.md
 System_Prompt.md
+yolo_runs/
+*.pth
+*.pt
+training_matrix_epoch_*.png
