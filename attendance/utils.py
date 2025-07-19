@@ -114,10 +114,11 @@ def mark_attendance(student, course=None, check_in_time=None, status=None, confi
     Returns:
         Tuple of (attendance_record, created)
     """
-    today = timezone.now().date()
+    current_datetime = timezone.localtime(timezone.now())
+    today = current_datetime.date()
     
     if not check_in_time:
-        check_in_time = timezone.now().time()
+        check_in_time = current_datetime.time()
     
     # Check if attendance already exists for today
     try:
@@ -156,8 +157,9 @@ def get_student_attendance_summary(student, start_date=None, end_date=None):
         Dictionary with attendance summary
     """
     # Default to the current academic year
+    current_datetime = timezone.localtime(timezone.now())
     if not start_date:
-        today = timezone.now().date()
+        today = current_datetime.date()
         # Academic year typically starts in August/September
         if today.month < 8:
             start_date = date(today.year - 1, 8, 1)
@@ -165,7 +167,7 @@ def get_student_attendance_summary(student, start_date=None, end_date=None):
             start_date = date(today.year, 8, 1)
     
     if not end_date:
-        end_date = timezone.now().date()
+        end_date = current_datetime.date()
     
     # Get all attendance records for the student in the date range
     attendance_records = Attendance.objects.filter(

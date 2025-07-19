@@ -1,13 +1,13 @@
 {% extends 'base.html' %}
 {% load static %}
-{% block title %}Scan Attendance - Smart Presence{% endblock %}
+{% block title %}Check-in/Check-out - Smart Presence{% endblock %}
 
 {% block content %}
 <div class="container mt-4">
     <div class="row">
         <div class="col-12">
             <div class="d-flex justify-content-between align-items-center mb-4">
-                <h2><i class="fas fa-camera"></i> Attendance Scanning</h2>
+                <h2><i class="fas fa-sign-in-alt"></i> Scan Attendance</h2>
                 <div class="d-flex gap-2">
                     <span class="badge bg-primary" id="timeDisplay"></span>
                     <span class="badge bg-info" id="statusDisplay">Ready</span>
@@ -20,7 +20,7 @@
                     <div class="card h-100">
                         <div class="card-header">
                             <h5 class="mb-0">
-                                <i class="fas fa-video"></i> Live Camera Feed
+                                <i class="fas fa-video"></i> Face Recognition Camera
                             </h5>
                         </div>
                         <div class="card-body text-center">
@@ -34,7 +34,7 @@
                                     <div class="placeholder-content">
                                         <i class="fas fa-video fa-4x mb-3"></i>
                                         <h5 class="mb-2">Camera Ready</h5>
-                                        <p class="text-muted mb-0">Click "Start Camera" to begin scanning</p>
+                                        <p class="text-muted mb-0">Click "Check-in" or "Check-out" to begin</p>
                                     </div>
                                 </div>
                             </div>
@@ -42,7 +42,10 @@
                             <!-- Camera Controls -->
                             <div class="mt-3">
                                 <button type="button" class="btn btn-success me-2" id="startCamera">
-                                    <i class="fas fa-play"></i> Start Camera
+                                    <i class="fas fa-sign-in-alt"></i> Check-in
+                                </button>
+                                <button type="button" class="btn btn-warning me-2" id="checkoutBtn">
+                                    <i class="fas fa-sign-out-alt"></i> Check-out
                                 </button>
                                 <button type="button" class="btn btn-danger me-2" id="stopCamera" style="display: none;">
                                     <i class="fas fa-stop"></i> Stop Camera
@@ -161,7 +164,7 @@ let detectionInterval = null;
 let scanCount = 0;
 
 // DOM elements
-let videoElement, overlayCanvas, startCameraBtn, stopCameraBtn, toggleDetectionBtn;
+let videoElement, overlayCanvas, startCameraBtn, stopCameraBtn, toggleDetectionBtn, checkoutBtn;
 let scanCameraPlaceholder, detectionStatus, recognitionResult, noRecognition;
 
 // Initialize when DOM is loaded
@@ -173,22 +176,24 @@ document.addEventListener('DOMContentLoaded', function() {
     startCameraBtn = document.getElementById('startCamera');
     stopCameraBtn = document.getElementById('stopCamera');
     toggleDetectionBtn = document.getElementById('toggleDetection');
+    checkoutBtn = document.getElementById('checkoutBtn');
     scanCameraPlaceholder = document.getElementById('scanCameraPlaceholder');
     detectionStatus = document.getElementById('detectionStatus');
     recognitionResult = document.getElementById('recognitionResult');
     noRecognition = document.getElementById('noRecognition');
     
     // Set up event handlers
-    if (startCameraBtn) startCameraBtn.onclick = startCamera;
+    if (startCameraBtn) startCameraBtn.onclick = performCheckIn;
     if (stopCameraBtn) stopCameraBtn.onclick = stopCamera;
     if (toggleDetectionBtn) toggleDetectionBtn.onclick = toggleDetection;
+    if (checkoutBtn) checkoutBtn.onclick = performCheckOut;
     
 
 });
 
-// Camera functions
-function startCamera() {
-    updateStatus('Requesting camera access...');
+// Check-in and Check-out functions
+function performCheckIn() {
+    updateStatus('Requesting camera access for check-in...');
     
     navigator.mediaDevices.getUserMedia({ 
             video: { 
@@ -198,7 +203,7 @@ function startCamera() {
             } 
     })
     .then(function(stream) {
-        updateStatus('Camera ready');
+        updateStatus('Camera ready for check-in');
         
         videoStream = stream;
         videoElement.srcObject = stream;
@@ -210,10 +215,51 @@ function startCamera() {
             videoElement.style.display = '';
             scanCameraPlaceholder.style.display = 'none';
             stopCameraBtn.style.display = '';
-        startCameraBtn.style.display = 'none';
-            toggleDetectionBtn.style.display = '';
+            startCameraBtn.style.display = 'none';
+            checkoutBtn.style.display = 'none';
             
-            updateStatus('Camera ready - click "Start Detection" to begin');
+            // Capture and process for check-in
+            setTimeout(() => {
+                captureAndProcessCheckIn();
+            }, 1000);
+        };
+    })
+    .catch(function(err) {
+        updateStatus('Camera access failed');
+        alert('Error accessing camera: ' + err.message);
+    });
+}
+
+function performCheckOut() {
+    updateStatus('Requesting camera access for check-out...');
+    
+    navigator.mediaDevices.getUserMedia({ 
+            video: { 
+            width: { ideal: 640 },
+            height: { ideal: 480 },
+                facingMode: 'user'
+            } 
+    })
+    .then(function(stream) {
+        updateStatus('Camera ready for check-out');
+        
+        videoStream = stream;
+        videoElement.srcObject = stream;
+        
+        videoElement.onloadedmetadata = function() {
+            overlayCanvas.width = videoElement.videoWidth;
+            overlayCanvas.height = videoElement.videoHeight;
+            
+            videoElement.style.display = '';
+            scanCameraPlaceholder.style.display = 'none';
+            stopCameraBtn.style.display = '';
+            startCameraBtn.style.display = 'none';
+            checkoutBtn.style.display = 'none';
+            
+            // Capture and process for check-out
+            setTimeout(() => {
+                captureAndProcessCheckOut();
+            }, 1000);
         };
     })
     .catch(function(err) {
@@ -232,10 +278,272 @@ function stopCamera() {
     scanCameraPlaceholder.style.display = '';
     stopCameraBtn.style.display = 'none';
     startCameraBtn.style.display = '';
+    checkoutBtn.style.display = '';
     toggleDetectionBtn.style.display = 'none';
     
     stopDetection();
     updateStatus('Camera stopped');
+}
+
+// Capture and process functions for check-in and check-out
+function captureAndProcessCheckIn() {
+    if (!videoElement || !overlayCanvas) return;
+    
+    const ctx = overlayCanvas.getContext('2d');
+    if (!ctx) return;
+    
+    // Set canvas size to match video
+    if (overlayCanvas.width !== videoElement.videoWidth || overlayCanvas.height !== videoElement.videoHeight) {
+        overlayCanvas.width = videoElement.videoWidth;
+        overlayCanvas.height = videoElement.videoHeight;
+    }
+    
+    // Show canvas briefly
+    overlayCanvas.style.display = 'block';
+    
+    try {
+        // Draw video frame to canvas
+        ctx.drawImage(videoElement, 0, 0, overlayCanvas.width, overlayCanvas.height);
+        
+        // Add check-in indicator
+        ctx.fillStyle = 'rgba(0, 255, 0, 0.1)';
+        ctx.fillRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+        ctx.fillStyle = 'rgba(0, 255, 0, 0.8)';
+        ctx.font = 'bold 16px Arial';
+        ctx.fillText('CHECKING IN...', overlayCanvas.width - 140, 30);
+        
+    } catch (error) {
+        console.error('Error drawing to canvas:', error);
+        overlayCanvas.style.display = 'none';
+        return;
+    }
+    
+    // Convert to blob and send to check-in API
+    overlayCanvas.toBlob(function(blob) {
+        if (!blob) {
+            console.error('Failed to create blob');
+            overlayCanvas.style.display = 'none';
+            return;
+        }
+        
+        const formData = new FormData();
+        formData.append('image', blob, 'checkin.jpg');
+        
+        fetch('/api/checkin/', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.results && data.results.length > 0) {
+                const face = data.results[0];
+                
+                // Update recognition result to show details
+                updateRecognitionResult(face);
+                
+                // Show success indicator
+                ctx.fillStyle = 'rgba(0, 255, 0, 0.2)';
+                ctx.fillRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+                ctx.fillStyle = 'rgba(0, 255, 0, 0.9)';
+                ctx.font = 'bold 14px Arial';
+                
+                let statusText = 'Check-in Successful';
+                if (face.attendance_status === 'already_checked_in') {
+                    statusText = 'Already Checked In';
+                }
+                
+                ctx.fillText(`${face.name} - ${statusText}`, overlayCanvas.width - 200, 60);
+                
+                if (face.roll_number) {
+                    ctx.fillText(`Roll: ${face.roll_number}`, overlayCanvas.width - 200, 80);
+                }
+                if (face.department) {
+                    ctx.fillText(`Dept: ${face.department}`, overlayCanvas.width - 200, 100);
+                }
+                if (face.attendance_details && face.attendance_details.check_in_time) {
+                    ctx.fillText(`Time: ${face.attendance_details.check_in_time}`, overlayCanvas.width - 200, 120);
+                }
+                
+                // Create status message
+                let statusMsg = `Check-in: ${face.name}`;
+                if (face.roll_number) {
+                    statusMsg += ` (Roll: ${face.roll_number})`;
+                }
+                if (face.department) {
+                    statusMsg += ` - ${face.department}`;
+                }
+                
+                if (face.attendance_status === 'already_checked_in') {
+                    statusMsg += ` - Already checked in at ${face.attendance_details.check_in_time}`;
+                } else if (face.attendance_status === 'checked_in') {
+                    statusMsg += ` - Checked in at ${face.attendance_details.check_in_time}`;
+                }
+                
+                updateStatus(statusMsg);
+            } else {
+                updateRecognitionResult({ name: 'Unknown' });
+                updateStatus('No faces detected for check-in');
+            }
+            
+            // Hide canvas after 2 seconds and reset
+            setTimeout(() => {
+                overlayCanvas.style.display = 'none';
+                stopCamera();
+            }, 2000);
+        })
+        .catch(err => {
+            updateStatus('Check-in error: ' + err.message);
+            
+            // Show error indicator
+            ctx.fillStyle = 'rgba(255, 0, 0, 0.3)';
+            ctx.fillRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+            ctx.fillStyle = 'white';
+            ctx.font = 'bold 20px Arial';
+            ctx.fillText('CHECK-IN ERROR', overlayCanvas.width/2 - 80, overlayCanvas.height/2);
+            
+            setTimeout(() => {
+                overlayCanvas.style.display = 'none';
+                stopCamera();
+            }, 2000);
+        });
+    }, 'image/jpeg', 0.8);
+}
+
+function captureAndProcessCheckOut() {
+    if (!videoElement || !overlayCanvas) return;
+    
+    const ctx = overlayCanvas.getContext('2d');
+    if (!ctx) return;
+    
+    // Set canvas size to match video
+    if (overlayCanvas.width !== videoElement.videoWidth || overlayCanvas.height !== videoElement.videoHeight) {
+        overlayCanvas.width = videoElement.videoWidth;
+        overlayCanvas.height = videoElement.videoHeight;
+    }
+    
+    // Show canvas briefly
+    overlayCanvas.style.display = 'block';
+    
+    try {
+        // Draw video frame to canvas
+        ctx.drawImage(videoElement, 0, 0, overlayCanvas.width, overlayCanvas.height);
+        
+        // Add check-out indicator
+        ctx.fillStyle = 'rgba(255, 165, 0, 0.1)';
+        ctx.fillRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+        ctx.fillStyle = 'rgba(255, 165, 0, 0.8)';
+        ctx.font = 'bold 16px Arial';
+        ctx.fillText('CHECKING OUT...', overlayCanvas.width - 140, 30);
+        
+    } catch (error) {
+        console.error('Error drawing to canvas:', error);
+        overlayCanvas.style.display = 'none';
+        return;
+    }
+    
+    // Convert to blob and send to check-out API
+    overlayCanvas.toBlob(function(blob) {
+        if (!blob) {
+            console.error('Failed to create blob');
+            overlayCanvas.style.display = 'none';
+            return;
+        }
+        
+        const formData = new FormData();
+        formData.append('image', blob, 'checkout.jpg');
+        
+        fetch('/api/checkout/', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.results && data.results.length > 0) {
+                const face = data.results[0];
+                
+                // Update recognition result to show details
+                updateRecognitionResult(face);
+                
+                // Show success indicator
+                ctx.fillStyle = 'rgba(255, 165, 0, 0.2)';
+                ctx.fillRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+                ctx.fillStyle = 'rgba(255, 165, 0, 0.9)';
+                ctx.font = 'bold 14px Arial';
+                
+                let statusText = 'Check-out Successful';
+                if (face.attendance_status === 'already_checked_out') {
+                    statusText = 'Already Checked Out';
+                } else if (face.attendance_status === 'no_check_in') {
+                    statusText = 'No Check-in Found';
+                }
+                
+                ctx.fillText(`${face.name} - ${statusText}`, overlayCanvas.width - 200, 60);
+                
+                if (face.roll_number) {
+                    ctx.fillText(`Roll: ${face.roll_number}`, overlayCanvas.width - 200, 80);
+                }
+                if (face.department) {
+                    ctx.fillText(`Dept: ${face.department}`, overlayCanvas.width - 200, 100);
+                }
+                if (face.attendance_details && face.attendance_details.check_out_time) {
+                    ctx.fillText(`Time: ${face.attendance_details.check_out_time}`, overlayCanvas.width - 200, 120);
+                }
+                
+                // Create status message
+                let statusMsg = `Check-out: ${face.name}`;
+                if (face.roll_number) {
+                    statusMsg += ` (Roll: ${face.roll_number})`;
+                }
+                if (face.department) {
+                    statusMsg += ` - ${face.department}`;
+                }
+                
+                if (face.attendance_status === 'already_checked_out') {
+                    statusMsg += ` - Already checked out at ${face.attendance_details.check_out_time}`;
+                } else if (face.attendance_status === 'checked_out') {
+                    statusMsg += ` - Checked out at ${face.attendance_details.check_out_time}`;
+                } else if (face.attendance_status === 'no_check_in') {
+                    statusMsg += ` - No check-in record found for today`;
+                }
+                
+                updateStatus(statusMsg);
+            } else {
+                updateRecognitionResult({ name: 'Unknown' });
+                updateStatus('No faces detected for check-out');
+            }
+            
+            // Hide canvas after 2 seconds and reset
+            setTimeout(() => {
+                overlayCanvas.style.display = 'none';
+                stopCamera();
+            }, 2000);
+        })
+        .catch(err => {
+            updateStatus('Check-out error: ' + err.message);
+            
+            // Show error indicator
+            ctx.fillStyle = 'rgba(255, 0, 0, 0.3)';
+            ctx.fillRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+            ctx.fillStyle = 'white';
+            ctx.font = 'bold 20px Arial';
+            ctx.fillText('CHECK-OUT ERROR', overlayCanvas.width/2 - 80, overlayCanvas.height/2);
+            
+            setTimeout(() => {
+                overlayCanvas.style.display = 'none';
+                stopCamera();
+            }, 2000);
+        });
+    }, 'image/jpeg', 0.8);
 }
 
 // Detection functions
@@ -490,6 +798,21 @@ function updateRecognitionResult(face) {
                 statusText = 'Already Marked';
                 statusClass = 'bg-secondary';
             }
+        } else if (face.attendance_status === 'checked_in') {
+            statusText = 'Checked In';
+            statusClass = 'bg-success';
+        } else if (face.attendance_status === 'already_checked_in') {
+            statusText = 'Already Checked In';
+            statusClass = 'bg-info';
+        } else if (face.attendance_status === 'checked_out') {
+            statusText = 'Checked Out';
+            statusClass = 'bg-warning';
+        } else if (face.attendance_status === 'already_checked_out') {
+            statusText = 'Already Checked Out';
+            statusClass = 'bg-secondary';
+        } else if (face.attendance_status === 'no_check_in') {
+            statusText = 'No Check-in Found';
+            statusClass = 'bg-danger';
         } else {
             statusText = 'Unknown';
             statusClass = 'bg-secondary';
@@ -501,11 +824,20 @@ function updateRecognitionResult(face) {
         // Update attendance time
         const attendanceTime = document.getElementById('attendanceTime');
         if (attendanceTime) {
-            if (face.attendance_details && face.attendance_details.check_in_time) {
-                attendanceTime.textContent = `Check-in: ${face.attendance_details.check_in_time}`;
-            } else {
-                attendanceTime.textContent = 'Check-in: --';
+            let timeText = '';
+            if (face.attendance_details) {
+                if (face.attendance_details.check_in_time) {
+                    timeText += `Check-in: ${face.attendance_details.check_in_time}`;
+                }
+                if (face.attendance_details.check_out_time) {
+                    if (timeText) timeText += '<br>';
+                    timeText += `Check-out: ${face.attendance_details.check_out_time}`;
+                }
             }
+            if (!timeText) {
+                timeText = 'Check-in: --';
+            }
+            attendanceTime.innerHTML = timeText;
         }
         
 

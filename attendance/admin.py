@@ -54,6 +54,27 @@ class StudentAdmin(admin.ModelAdmin):
             'fields': ('enrollment_year', 'graduation_year')
         }),
     )
+    
+    def delete_model(self, request, obj):
+        """Override delete_model to also delete the associated user account"""
+        if obj.user:
+            user_username = obj.user.username
+            obj.user.delete()
+            self.message_user(request, f"User account '{user_username}' has also been deleted.")
+        obj.delete()
+    
+    def delete_queryset(self, request, queryset):
+        """Override delete_queryset to also delete associated user accounts when bulk deleting"""
+        deleted_users = []
+        for obj in queryset:
+            if obj.user:
+                deleted_users.append(obj.user.username)
+                obj.user.delete()
+        
+        if deleted_users:
+            self.message_user(request, f"User accounts for {', '.join(deleted_users)} have also been deleted.")
+        
+        queryset.delete()
 
 @admin.register(Attendance)
 class AttendanceAdmin(admin.ModelAdmin):
