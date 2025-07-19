@@ -16,24 +16,23 @@
             <a class="navbar-brand" href="{% url 'landing' %}">
                 <i class="fas fa-graduation-cap"></i> Smart Presence
             </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
-                <span class="navbar-toggler-icon"></span>
-            </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
-                    
-                    {% if request.user.is_authenticated and request.user.student_profile %}
-                        <li class="nav-item">
-                            <a class="nav-link" href="{% url 'student_home' %}"><i class="fas fa-home"></i> Home</a>
-                        </li>
+                   {% if request.user.is_authenticated and request.user.student_profile %} 
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'student_home' %}"><i class="fas fa-home"></i> Home</a>
+                    </li>
                     {% else %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'landing' %}"><i class="fas fa-home"></i> Home</a>
+                    </li>
+                    {% endif %}
+                    
+                    {% if not request.user.is_authenticated %}
                         <li class="nav-item">
-                            <a class="nav-link" href="{% url 'landing' %}"><i class="fas fa-home"></i> Home</a>
+                            <a class="nav-link" href="{% url 'landing' %}#features"><i class="fas fa-list-check"></i> Features</a>
                         </li>
                     {% endif %}
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'landing' %}#features"><i class="fas fa-list-check"></i> Features</a>
-                    </li>
                     <li class="nav-item">
                         <a class="nav-link" href="{% url 'scan' %}"><i class="fas fa-camera"></i> Scan</a>
                     </li>

@@ -1,6 +1,6 @@
 from django.urls import path
 from . import views
-from .views import ScanAPIView, TestPipelineAPIView, CheckInAPIView, CheckOutAPIView
+from .views import ScanAPIView, TestPipelineAPIView, CheckInAPIView, CheckOutAPIView, RetrainModelAPIView
 
 urlpatterns = [
     # Landing page
@@ -35,5 +35,6 @@ urlpatterns = [
     path('api/scan/', ScanAPIView.as_view(), name='api_scan'),
     path('api/checkin/', CheckInAPIView.as_view(), name='api_checkin'),
     path('api/checkout/', CheckOutAPIView.as_view(), name='api_checkout'),
+    path('api/retrain/', RetrainModelAPIView.as_view(), name='api_retrain'),
     path('api/test-pipeline/', TestPipelineAPIView.as_view(), name='test_pipeline'),
 ] 

@@ -94,18 +94,13 @@ class Command(BaseCommand):
         # Training logic will go here
         self.stdout.write(self.style.SUCCESS('Datasets and MTCNN initialized. Ready for training loop.'))
 
-        # Note: MTCNN is typically used as a pretrained detector and not trained from scratch with custom data.
-        # For demonstration, we simulate a training loop and focus on evaluation and matrix generation.
-
         best_f1 = 0
         for epoch in range(EPOCHS):
             mtcnn.train()
             running_loss = 0.0
             for images, boxes, _ in train_loader:
-                # MTCNN does not have a standard training API; typically, you would use a custom detector for training.
-                # Here, we simulate training by running detection and comparing to ground truth.
-                # In practice, you would use a custom model for training on YOLO data.
-                pass  # Placeholder for training logic
+       
+                pass 
 
             # Validation
             mtcnn.eval()

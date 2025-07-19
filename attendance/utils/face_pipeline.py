@@ -18,10 +18,11 @@ resnet = None
 mtcnn = None
 clf = None
 encoder = None
+models_loaded = False
 
 def load_models():
     """Load all models with error handling"""
-    global yolo_model, resnet, mtcnn, clf, encoder
+    global yolo_model, resnet, mtcnn, clf, encoder, models_loaded
     
     try:
         # Load YOLO model
@@ -63,6 +64,7 @@ def load_models():
         encoder = joblib.load(encoder_path)
         logger.info("SVM classifier and label encoder loaded successfully")
         
+        models_loaded = True
         return True
         
     except Exception as e:
@@ -70,7 +72,7 @@ def load_models():
         return False
 
 # Load models on import
-models_loaded = load_models()
+load_models()
 
 def detect_and_recognize(image_path):
     """
@@ -188,6 +190,29 @@ def detect_and_recognize(image_path):
         return []
 
 # Test function for debugging
+def reload_models():
+    """Reload all models (useful after retraining)"""
+    global yolo_model, resnet, mtcnn, clf, encoder, models_loaded
+    
+    logger.info("Reloading FaceNet models...")
+    
+    # Reset models
+    yolo_model = None
+    resnet = None
+    mtcnn = None
+    clf = None
+    encoder = None
+    models_loaded = False
+    
+    # Reload models
+    success = load_models()
+    if success:
+        logger.info("Models reloaded successfully!")
+    else:
+        logger.error("Failed to reload models!")
+    
+    return success
+
 def test_pipeline():
     """Test the pipeline with a sample image"""
     logger.info("Testing face detection and recognition pipeline...")

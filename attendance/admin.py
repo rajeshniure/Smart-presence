@@ -75,6 +75,31 @@ class StudentAdmin(admin.ModelAdmin):
             self.message_user(request, f"User accounts for {', '.join(deleted_users)} have also been deleted.")
         
         queryset.delete()
+    
+    def retrain_model(self, request, queryset):
+        """Custom action to retrain the FaceNet model"""
+        from django.core.management import call_command
+        import threading
+        
+        def retrain_async():
+            try:
+                call_command('retrain_facenet', '--force', verbosity=1)
+                # Reload models after retraining
+                from attendance.utils.face_pipeline import reload_models
+                reload_models()
+            except Exception as e:
+                print(f"Error in retraining: {str(e)}")
+        
+        # Start retraining in background thread
+        thread = threading.Thread(target=retrain_async)
+        thread.daemon = True
+        thread.start()
+        
+        self.message_user(request, "FaceNet model retraining started in background. This may take a few minutes.")
+    
+    retrain_model.short_description = "Retrain FaceNet Model"
+    
+    actions = ['retrain_model']
 
 @admin.register(Attendance)
 class AttendanceAdmin(admin.ModelAdmin):
