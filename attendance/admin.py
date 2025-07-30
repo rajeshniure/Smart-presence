@@ -119,7 +119,16 @@ class EmotionLogAdmin(admin.ModelAdmin):
 
 @admin.register(AttendanceSettings)
 class AttendanceSettingsAdmin(admin.ModelAdmin):
-    list_display = ['on_time_threshold', 'late_threshold', 'absent_threshold', 'min_attendance_percentage', 'updated_at']
+    list_display = ['on_time_threshold', 'late_threshold', 'absent_threshold', 'min_attendance_percentage', 'face_recognition_threshold', 'updated_at']
+    fieldsets = (
+        ('Attendance Time Settings', {
+            'fields': ('on_time_threshold', 'late_threshold', 'absent_threshold')
+        }),
+        ('System Settings', {
+            'fields': ('min_attendance_percentage', 'face_recognition_threshold', 'allow_late_marking'),
+            'description': 'Face recognition threshold: Distance threshold (0.5-1.2). Lower = stricter matching. Recommended: 0.8-1.0'
+        }),
+    )
     
     def has_add_permission(self, request):
         # Only allow one settings object
