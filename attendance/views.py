@@ -9,25 +9,21 @@ from django.db import IntegrityError
 from django.db.models import Count
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-from .models import Student, Attendance, EmotionLog
+from .models import Student, Attendance, EmotionLog, Course
 import base64
-import io
 import json
-from PIL import Image
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 import calendar
 
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status as http_status
 from django.utils import timezone
-from .models import Attendance, Student, Course
-from .serializers import AttendanceSerializer
-from .utils.face_pipeline import detect_and_recognize, test_pipeline
+from .utils.face_pipeline import detect_and_recognize
 import os
 from django.core.files.storage import default_storage
 import logging
-from django.utils.decorators import method_decorator
+
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -38,6 +34,28 @@ def is_admin(user):
 
 def is_student(user):
     return hasattr(user, 'student_profile') and user.student_profile is not None
+
+def get_or_create_student_image(image_file, webcam_image, filename_prefix):
+    if image_file:
+        return image_file
+    if webcam_image:
+        format, imgstr = webcam_image.split(';base64,')
+        ext = format.split('/')[-1]
+        return ContentFile(base64.b64decode(imgstr), name=f'{filename_prefix}_webcam.{ext}')
+    return None
+
+def get_attendance_stats(qs):
+    total = qs.count()
+    present = qs.filter(status='present').count()
+    late = qs.filter(status='late').count()
+    absent = qs.filter(status='absent').count()
+    rate = round(((present + (late * 0.5)) / total) * 100) if total > 0 else 0
+    return {'present': present, 'late': late, 'absent': absent, 'rate': rate}
+
+def get_unverified_count(request):
+    if request.user.is_authenticated and is_admin(request.user):
+        return Student.objects.filter(is_verified=False).count()
+    return 0
 
 # Landing page view
 def landing(request):
@@ -63,13 +81,16 @@ def admin_login_view(request):
 
 def student_login_view(request):
     if request.method == 'POST':
-        roll_number = request.POST.get('roll_number')
+        email = request.POST.get('email')
         password = request.POST.get('password')
         
         try:
-            student = Student.objects.get(roll_number=roll_number)
+            student = Student.objects.get(email=email)
             if not student.user:
                 messages.error(request, "This student is not registered for login. Please contact your teacher.")
+                return redirect('landing')
+            if not student.is_verified:
+                messages.error(request, "Your registration is pending verification by a teacher/admin. Please wait for approval.")
                 return redirect('landing')
             user = authenticate(request, username=student.user.username, password=password)
             if user is not None:
@@ -78,7 +99,7 @@ def student_login_view(request):
                 return redirect('student_home')
             messages.error(request, "Invalid credentials.")
         except Student.DoesNotExist:
-            messages.error(request, "Student with this roll number does not exist.")
+            messages.error(request, "Student with this email does not exist.")
         
         return redirect('landing')
     
@@ -108,11 +129,11 @@ def home(request):
         'present_today': present_today,
         'late_today': late_today,
         'absent_today': absent_today,
+        'unverified_count': get_unverified_count(request),
     }
     return render(request, "teacherDashboard/home.html", context)
 
-@login_required
-@user_passes_test(is_admin)
+
 def register(request):
     if request.method == 'POST':
         try:
@@ -128,15 +149,40 @@ def register(request):
             # Enforce password requirement
             if not password:
                 messages.error(request, 'Password is required for student login access.')
-                return render(request, "teacherDashboard/register.html")
+                return render(request, "register.html")
             # Confirm password match
             if password != confirm_password:
                 messages.error(request, 'Passwords do not match.')
-                return render(request, "teacherDashboard/register.html")
+                return render(request, "register.html")
             
             # Handle image - either uploaded file or webcam capture
             image_file = request.FILES.get('image')
             webcam_image = request.POST.get('webcam_image')
+            
+            # Process image
+            student_image = get_or_create_student_image(image_file, webcam_image, roll_number)
+            if not student_image:
+                messages.error(request, 'Please provide an image either by upload or webcam capture.')
+                return render(request, "register.html")
+            
+            # Save image temporarily for face validation
+            import tempfile
+            import os
+            temp_path = None
+            try:
+                with tempfile.NamedTemporaryFile(delete=False, suffix='.jpg') as temp_img:
+                    for chunk in student_image.chunks() if hasattr(student_image, 'chunks') else [student_image.read()]:
+                        temp_img.write(chunk)
+                    temp_path = temp_img.name
+                # Validate face
+                faces = detect_and_recognize(temp_path)
+                if not faces or len(faces) == 0:
+                    messages.error(request, 'The uploaded image must contain a clear human face. Please try again.')
+                    os.remove(temp_path)
+                    return render(request, "register.html")
+            finally:
+                if temp_path and os.path.exists(temp_path):
+                    os.remove(temp_path)
             
             # Create student instance
             student = Student(
@@ -144,21 +190,10 @@ def register(request):
                 roll_number=roll_number,
                 email=email,
                 phone=phone,
-                department=department
+                department=department,
+                is_verified=False
             )
-            
-            # Process image
-            if image_file:
-                student.image = image_file
-            elif webcam_image:
-                # Process base64 webcam image
-                format, imgstr = webcam_image.split(';base64,')
-                ext = format.split('/')[-1]
-                image_data = ContentFile(base64.b64decode(imgstr), name=f'{roll_number}_webcam.{ext}')
-                student.image = image_data
-            else:
-                messages.error(request, 'Please provide an image either by upload or webcam capture.')
-                return render(request, "teacherDashboard/register.html")
+            student.image = student_image
             
             # Create user account
             username = roll_number  # Use roll number as username
@@ -170,7 +205,7 @@ def register(request):
             
             # Save student
             student.save()
-            messages.success(request, f'Student {name} registered successfully!')
+            messages.success(request, f'Registration successful! Please wait for verification by a teacher/admin before logging in.')
             return redirect('register')
             
         except IntegrityError as e:
@@ -183,10 +218,21 @@ def register(request):
         except Exception as e:
             messages.error(request, f'An error occurred: {str(e)}')
     
-    return render(request, "teacherDashboard/register.html")
+    return render(request, "register.html")
 
 def scan(request):
-    return render(request, "scan.html")
+    if request.method == 'POST' and request.FILES.get('image'):
+        abs_path = handle_uploaded_image(request, 'temp_scan.jpg')
+        results = recognize_and_cleanup(abs_path)
+        # Ensure 'Unknown' faces are not matched to students
+        for face in results:
+            name = face.get('name', '')
+            if name.lower() == 'unknown':
+                face['roll_number'] = None
+                face['department'] = None
+                face['photo_url'] = None
+        return render(request, 'scan.html', {'results': results})
+    return render(request, 'scan.html')
 
 @login_required
 @user_passes_test(is_admin)
@@ -195,7 +241,7 @@ def students(request):
     search_query = request.GET.get('search', '')
     department_filter = request.GET.get('department', '')
     
-    students = Student.objects.all()
+    students = Student.objects.filter(is_verified=True)
     
     if search_query:
         students = students.filter(
@@ -215,6 +261,7 @@ def students(request):
         'departments': departments,
         'search_query': search_query,
         'department_filter': department_filter,
+        'unverified_count': get_unverified_count(request),
     }
     return render(request, "teacherDashboard/students.html", context)
 
@@ -244,6 +291,7 @@ def attendance(request):
         'late_count': late_count,
         'absent_count': absent_count,
         'total_students': total_students,
+        'unverified_count': get_unverified_count(request),
     }
     return render(request, "teacherDashboard/attendance.html", context)
 
@@ -261,22 +309,7 @@ def student_home(request):
         today_attendance = None
     
     # Calculate attendance statistics
-    total_days = Attendance.objects.filter(student=student).count()
-    present_days = Attendance.objects.filter(student=student, status='present').count()
-    late_days = Attendance.objects.filter(student=student, status='late').count()
-    absent_days = Attendance.objects.filter(student=student, status='absent').count()
-    
-    attendance_rate = 0
-    if total_days > 0:
-        # Count late as half present for rate calculation
-        attendance_rate = round(((present_days + (late_days * 0.5)) / total_days) * 100)
-    
-    attendance_stats = {
-        'present': present_days,
-        'late': late_days,
-        'absent': absent_days,
-        'rate': attendance_rate
-    }
+    attendance_stats = get_attendance_stats(Attendance.objects.filter(student=student))
     
     context = {
         'student': student,
@@ -305,15 +338,7 @@ def student_attendance(request):
             pass
     
     # Calculate attendance statistics for the filtered records
-    total_records = attendance_records.count()
-    present_count = attendance_records.filter(status='present').count()
-    late_count = attendance_records.filter(status='late').count()
-    absent_count = attendance_records.filter(status='absent').count()
-    
-    attendance_rate = 0
-    if total_records > 0:
-        # Count late as half present for rate calculation
-        attendance_rate = round(((present_count + (late_count * 0.5)) / total_records) * 100)
+    attendance_stats = get_attendance_stats(attendance_records)
     
     # Prepare month choices for the filter
     months = [(str(i), calendar.month_name[i]) for i in range(1, 13)]
@@ -326,12 +351,7 @@ def student_attendance(request):
     context = {
         'student': student,
         'attendance_records': page_obj,
-        'attendance_stats': {
-            'present': present_count,
-            'late': late_count,
-            'absent': absent_count,
-            'rate': attendance_rate
-        },
+        'attendance_stats': attendance_stats,
         'months': months,
         'selected_month': selected_month,
     }
@@ -400,15 +420,9 @@ def student_photo_update(request):
         image_file = request.FILES.get('image')
         webcam_image = request.POST.get('webcam_image')
         
-        if image_file:
-            student.image = image_file
-        elif webcam_image:
-            # Process base64 webcam image
-            format, imgstr = webcam_image.split(';base64,')
-            ext = format.split('/')[-1]
-            image_data = ContentFile(base64.b64decode(imgstr), name=f'{student.roll_number}_webcam.{ext}')
-            student.image = image_data
-        else:
+        student.image = get_or_create_student_image(image_file, webcam_image, student.roll_number)
+        
+        if not student.image:
             messages.error(request, 'No image provided.')
             return redirect('student_profile')
         
@@ -553,93 +567,104 @@ def attendance_emotions_api(request, record_id):
     
     return JsonResponse(data)
 
+@csrf_exempt
+def attendance_edit_api(request, record_id):
+    from django.utils.dateparse import parse_time
+    att = get_object_or_404(Attendance, id=record_id)
+    if request.method == 'GET':
+        return JsonResponse({
+            'success': True,
+            'record': {
+                'id': att.id,
+                'status': att.status,
+                'check_in_time': att.check_in_time.strftime('%H:%M') if att.check_in_time else '',
+                'check_out_time': att.check_out_time.strftime('%H:%M') if att.check_out_time else '',
+            }
+        })
+    elif request.method == 'POST':
+        status = request.POST.get('status')
+        check_in_time = request.POST.get('check_in_time')
+        check_out_time = request.POST.get('check_out_time')
+        if status in ['present','late','absent']:
+            att.status = status
+        att.check_in_time = parse_time(check_in_time) if check_in_time else None
+        att.check_out_time = parse_time(check_out_time) if check_out_time else None
+        att.save()
+        return JsonResponse({'success': True, 'message': 'Attendance updated'})
+    return JsonResponse({'success': False, 'message': 'Invalid request'}, status=400)
 
 
-
-def scan_view(request):
-    if request.method == 'POST' and request.FILES.get('image'):
-        image_file = request.FILES['image']
-        temp_path = default_storage.save('temp_scan.jpg', image_file)
-        abs_path = default_storage.path(temp_path)
+def recognize_and_cleanup(abs_path):
+    """Run face recognition and clean up temp file."""
+    try:
         results = detect_and_recognize(abs_path)
-        # Optionally, delete temp file after processing
-        # default_storage.delete(temp_path)
-        return render(request, 'scan.html', {'results': results})
-    return render(request, 'scan.html')
+    finally:
+        try:
+            os.remove(abs_path)
+        except Exception:
+            pass
+    return results
+
+def handle_uploaded_image(request, temp_filename):
+    """Save uploaded image to temp file and return absolute path. Raises ValueError if no image."""
+    image_file = request.FILES.get('image')
+    if not image_file:
+        raise ValueError('No image provided.')
+    temp_path = default_storage.save(temp_filename, image_file)
+    abs_path = default_storage.path(temp_path)
+    return abs_path
+
+def build_student_data(face, student=None, attendance_status=None, attendance_id=None, attendance_details=None):
+    data = {
+        'name': face['name'],
+        'box': face['box'],
+        'attendance_status': attendance_status,
+        'attendance_id': attendance_id,
+        'attendance_details': attendance_details,
+    }
+    if student:
+        data.update({
+            'roll_number': student.roll_number,
+            'department': student.department,
+            'photo_url': student.image.url if student.image else None,
+        })
+    else:
+        data.update({'roll_number': None, 'department': None, 'photo_url': None})
+    return data
 
 class ScanAPIView(APIView):
-    authentication_classes = []  # Disable authentication
-    permission_classes = []      # Disable permissions
-    
+    authentication_classes = []
+    permission_classes = []
     def post(self, request, *args, **kwargs):
         try:
-            logger.info("Scan API called")
-            
-            # Check if image file is provided
-            image_file = request.FILES.get('image')
-            if not image_file:
-                logger.error("No image file provided in request")
-                return Response({'error': 'No image provided.'}, status=http_status.HTTP_400_BAD_REQUEST)
-            
-            logger.info(f"Received image: {image_file.name}, size: {image_file.size}")
-            
-            # Save image temporarily
             try:
-                temp_path = default_storage.save('temp_scan.jpg', image_file)
-                abs_path = default_storage.path(temp_path)
-                logger.info(f"Image saved to: {abs_path}")
-            except Exception as e:
-                logger.error(f"Error saving image: {str(e)}")
-                return Response({'error': 'Error processing image.'}, status=http_status.HTTP_500_INTERNAL_SERVER_ERROR)
-            
-            # Run face detection and recognition
+                abs_path = handle_uploaded_image(request, 'temp_scan.jpg')
+            except ValueError as e:
+                return Response({'error': str(e)}, status=http_status.HTTP_400_BAD_REQUEST)
             try:
-                logger.info("Starting face detection and recognition...")
-                results = detect_and_recognize(abs_path)
-                logger.info(f"Detection/recognition results: {results}")
-            except Exception as e:
-                logger.error(f"Error in face detection/recognition: {str(e)}")
+                results = recognize_and_cleanup(abs_path)
+            except Exception:
                 return Response({'error': 'Error in face detection/recognition.'}, status=http_status.HTTP_500_INTERNAL_SERVER_ERROR)
-            finally:
-                # Clean up temp file
-                try:
-                    os.remove(abs_path)
-                    logger.info("Temporary image file cleaned up")
-                except:
-                    pass
-            
-            # Process results and mark attendance
             response_data = []
             current_datetime = timezone.localtime(timezone.now())
             today = current_datetime.date()
-            
             for face in results:
                 try:
                     name = face['name']
-                    box = face['box']
-                    logger.info(f"Processing face: {name}, box: {box}")
-                    
-                    # Find student
+                    if name.lower() == 'unknown':
+                        response_data.append(build_student_data(face, None, 'unknown', None, None))
+                        continue
                     student = Student.objects.filter(name=name).first()
                     attendance_status = 'unknown'
                     attendance_id = None
                     attendance_details = None
-                    
                     if student:
-                        logger.info(f"Student found: {student.name}")
-                        current_datetime = timezone.localtime(timezone.now())
                         current_time = current_datetime.time()
                         current_date = current_datetime.date()
-                        
-                        # Check if attendance already exists for today
                         existing_attendance = Attendance.objects.filter(
-                            student=student,
-                            date=current_date,
-                            course=None
+                            student=student, date=current_date, course=None
                         ).first()
-                        
                         if existing_attendance:
-                            # Attendance already marked today
                             attendance_status = 'already_marked'
                             attendance_id = existing_attendance.id
                             attendance_details = {
@@ -647,24 +672,15 @@ class ScanAPIView(APIView):
                                 'check_in_time': existing_attendance.check_in_time.strftime('%H:%M') if existing_attendance.check_in_time else None,
                                 'check_out_time': existing_attendance.check_out_time.strftime('%H:%M') if existing_attendance.check_out_time else None
                             }
-                            logger.info(f"Attendance already marked: {existing_attendance.status}")
                         else:
-                            # Mark new attendance with time-based logic
                             from .models import AttendanceSettings
                             settings = AttendanceSettings.get_settings()
-                            
-                            # Determine attendance status based on current time
                             if current_time <= settings.on_time_threshold:
                                 attendance_status_value = 'present'
-                                logger.info(f"Marking as present (time: {current_time}, threshold: {settings.on_time_threshold})")
                             elif current_time <= settings.late_threshold:
                                 attendance_status_value = 'late'
-                                logger.info(f"Marking as late (time: {current_time}, threshold: {settings.late_threshold})")
                             else:
                                 attendance_status_value = 'absent'
-                                logger.info(f"Marking as absent (time: {current_time}, threshold: {settings.absent_threshold})")
-                            
-                            # Create new attendance record
                             att = Attendance.objects.create(
                                 student=student,
                                 date=current_date,
@@ -673,7 +689,6 @@ class ScanAPIView(APIView):
                                 status=attendance_status_value,
                                 confidence=1.0
                             )
-                            
                             attendance_status = attendance_status_value
                             attendance_id = att.id
                             attendance_details = {
@@ -681,142 +696,49 @@ class ScanAPIView(APIView):
                                 'check_in_time': current_time.strftime('%H:%M'),
                                 'check_out_time': None
                             }
-                            logger.info(f"New attendance marked: {attendance_status_value}")
-                    else:
-                        logger.warning(f"Student not found for name: {name}")
-                    
-                    # Prepare student data
-                    student_data = {
-                        'name': name,
-                        'box': box,
-                        'attendance_status': attendance_status,
-                        'attendance_id': attendance_id,
-                        'attendance_details': attendance_details,
-                    }
-                    
-                    # Add student details if found
-                    if student:
-                        student_data.update({
-                            'roll_number': student.roll_number,
-                            'department': student.department,
-                            'photo_url': student.image.url if student.image else None,
-                        })
-                    else:
-                        # For unknown faces, still provide structure
-                        student_data.update({
-                            'roll_number': None,
-                            'department': None,
-                            'photo_url': None,
-                        })
-                    
-                    response_data.append(student_data)
-                    
-                except Exception as e:
-                    logger.error(f"Error processing face result: {str(e)}")
+                    response_data.append(build_student_data(face, student, attendance_status, attendance_id, attendance_details))
+                except Exception:
                     continue
-            
-            logger.info(f"Final response data: {response_data}")
             return Response({'results': response_data}, status=http_status.HTTP_200_OK)
-            
-        except Exception as e:
-            logger.error(f"Unexpected error in ScanAPIView: {str(e)}")
+        except Exception:
             return Response({'error': 'Internal server error.'}, status=http_status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-# Add a test endpoint for debugging
-class TestPipelineAPIView(APIView):
-    authentication_classes = []  # Disable authentication
-    permission_classes = []      # Disable permissions
-    
-    def get(self, request, *args, **kwargs):
-        """Test the face detection and recognition pipeline"""
-        try:
-            logger.info("Testing face detection and recognition pipeline...")
-            success = test_pipeline()
-            return Response({
-                'success': success,
-                'message': 'Pipeline test completed successfully' if success else 'Pipeline test failed'
-            }, status=http_status.HTTP_200_OK)
-        except Exception as e:
-            logger.error(f"Error testing pipeline: {str(e)}")
-            return Response({
-                'success': False,
-                'error': str(e)
-            }, status=http_status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 
 class CheckInAPIView(APIView):
-    authentication_classes = []  # Disable authentication
-    permission_classes = []      # Disable permissions
-    
+    authentication_classes = []
+    permission_classes = []
     def post(self, request, *args, **kwargs):
-        """API endpoint for manual check-in"""
         try:
-            logger.info("Check-in API called")
-            
-            # Check if image file is provided
-            image_file = request.FILES.get('image')
-            if not image_file:
-                logger.error("No image file provided in request")
-                return Response({'error': 'No image provided.'}, status=http_status.HTTP_400_BAD_REQUEST)
-            
-            logger.info(f"Received image: {image_file.name}, size: {image_file.size}")
-            
-            # Save image temporarily
             try:
-                temp_path = default_storage.save('temp_checkin.jpg', image_file)
-                abs_path = default_storage.path(temp_path)
-                logger.info(f"Image saved to: {abs_path}")
-            except Exception as e:
-                logger.error(f"Error saving image: {str(e)}")
-                return Response({'error': 'Error processing image.'}, status=http_status.HTTP_500_INTERNAL_SERVER_ERROR)
-            
-            # Run face detection and recognition
+                abs_path = handle_uploaded_image(request, 'temp_checkin.jpg')
+            except ValueError as e:
+                return Response({'error': str(e)}, status=http_status.HTTP_400_BAD_REQUEST)
             try:
-                logger.info("Starting face detection and recognition for check-in...")
-                results = detect_and_recognize(abs_path)
-                logger.info(f"Detection/recognition results: {results}")
-            except Exception as e:
-                logger.error(f"Error in face detection/recognition: {str(e)}")
+                results = recognize_and_cleanup(abs_path)
+            except Exception:
                 return Response({'error': 'Error in face detection/recognition.'}, status=http_status.HTTP_500_INTERNAL_SERVER_ERROR)
-            finally:
-                # Clean up temp file
-                try:
-                    os.remove(abs_path)
-                    logger.info("Temporary image file cleaned up")
-                except:
-                    pass
-            
-            # Process results and mark check-in
             response_data = []
             current_datetime = timezone.localtime(timezone.now())
             today = current_datetime.date()
             current_time = current_datetime.time()
-            
             for face in results:
                 try:
                     name = face['name']
-                    box = face['box']
-                    logger.info(f"Processing face for check-in: {name}, box: {box}")
-                    
-                    # Find student
+                    if name.lower() == 'unknown':
+                        response_data.append(build_student_data(face, None, 'unknown', None, None))
+                        continue
                     student = Student.objects.filter(name=name).first()
                     attendance_status = 'unknown'
                     attendance_id = None
                     attendance_details = None
-                    
                     if student:
-                        logger.info(f"Student found for check-in: {student.name}")
-                        
-                        # Check if attendance already exists for today
                         existing_attendance = Attendance.objects.filter(
-                            student=student,
-                            date=today,
-                            course=None
+                            student=student, date=today, course=None
                         ).first()
-                        
                         if existing_attendance:
                             if existing_attendance.check_in_time:
-                                # Already checked in today
                                 attendance_status = 'already_checked_in'
                                 attendance_id = existing_attendance.id
                                 attendance_details = {
@@ -824,28 +746,17 @@ class CheckInAPIView(APIView):
                                     'check_in_time': existing_attendance.check_in_time.strftime('%H:%M'),
                                     'check_out_time': existing_attendance.check_out_time.strftime('%H:%M') if existing_attendance.check_out_time else None
                                 }
-                                logger.info(f"Student already checked in: {existing_attendance.check_in_time}")
                             else:
-                                # Has attendance record but no check-in time (shouldn't happen normally)
                                 attendance_status = 'error'
-                                logger.warning(f"Student has attendance record but no check-in time")
                         else:
-                            # Create new attendance record for check-in
                             from .models import AttendanceSettings
                             settings = AttendanceSettings.get_settings()
-                            
-                            # Determine attendance status based on current time
                             if current_time <= settings.on_time_threshold:
                                 attendance_status_value = 'present'
-                                logger.info(f"Check-in as present (time: {current_time}, threshold: {settings.on_time_threshold})")
                             elif current_time <= settings.late_threshold:
                                 attendance_status_value = 'late'
-                                logger.info(f"Check-in as late (time: {current_time}, threshold: {settings.late_threshold})")
                             else:
                                 attendance_status_value = 'absent'
-                                logger.info(f"Check-in as absent (time: {current_time}, threshold: {settings.absent_threshold})")
-                            
-                            # Create new attendance record
                             att = Attendance.objects.create(
                                 student=student,
                                 date=today,
@@ -854,7 +765,6 @@ class CheckInAPIView(APIView):
                                 status=attendance_status_value,
                                 confidence=1.0
                             )
-                            
                             attendance_status = 'checked_in'
                             attendance_id = att.id
                             attendance_details = {
@@ -862,121 +772,47 @@ class CheckInAPIView(APIView):
                                 'check_in_time': current_time.strftime('%H:%M'),
                                 'check_out_time': None
                             }
-                            logger.info(f"New check-in marked: {attendance_status_value}")
-                    else:
-                        logger.warning(f"Student not found for check-in: {name}")
-                    
-                    # Prepare student data
-                    student_data = {
-                        'name': name,
-                        'box': box,
-                        'attendance_status': attendance_status,
-                        'attendance_id': attendance_id,
-                        'attendance_details': attendance_details,
-                    }
-                    
-                    # Add student details if found
-                    if student:
-                        student_data.update({
-                            'roll_number': student.roll_number,
-                            'department': student.department,
-                            'photo_url': student.image.url if student.image else None,
-                        })
-                    else:
-                        # For unknown faces, still provide structure
-                        student_data.update({
-                            'roll_number': None,
-                            'department': None,
-                            'photo_url': None,
-                        })
-                    
-                    response_data.append(student_data)
-                    
-                except Exception as e:
-                    logger.error(f"Error processing face result for check-in: {str(e)}")
+                    response_data.append(build_student_data(face, student, attendance_status, attendance_id, attendance_details))
+                except Exception:
                     continue
-            
-            logger.info(f"Final check-in response data: {response_data}")
             return Response({'results': response_data}, status=http_status.HTTP_200_OK)
-            
-        except Exception as e:
-            logger.error(f"Unexpected error in CheckInAPIView: {str(e)}")
+        except Exception:
             return Response({'error': 'Internal server error.'}, status=http_status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class CheckOutAPIView(APIView):
-    authentication_classes = []  # Disable authentication
-    permission_classes = []      # Disable permissions
-    
+    authentication_classes = []
+    permission_classes = []
     def post(self, request, *args, **kwargs):
-        """API endpoint for manual check-out"""
         try:
-            logger.info("Check-out API called")
-            
-            # Check if image file is provided
-            image_file = request.FILES.get('image')
-            if not image_file:
-                logger.error("No image file provided in request")
-                return Response({'error': 'No image provided.'}, status=http_status.HTTP_400_BAD_REQUEST)
-            
-            logger.info(f"Received image: {image_file.name}, size: {image_file.size}")
-            
-            # Save image temporarily
             try:
-                temp_path = default_storage.save('temp_checkout.jpg', image_file)
-                abs_path = default_storage.path(temp_path)
-                logger.info(f"Image saved to: {abs_path}")
-            except Exception as e:
-                logger.error(f"Error saving image: {str(e)}")
-                return Response({'error': 'Error processing image.'}, status=http_status.HTTP_500_INTERNAL_SERVER_ERROR)
-            
-            # Run face detection and recognition
+                abs_path = handle_uploaded_image(request, 'temp_checkout.jpg')
+            except ValueError as e:
+                return Response({'error': str(e)}, status=http_status.HTTP_400_BAD_REQUEST)
             try:
-                logger.info("Starting face detection and recognition for check-out...")
-                results = detect_and_recognize(abs_path)
-                logger.info(f"Detection/recognition results: {results}")
-            except Exception as e:
-                logger.error(f"Error in face detection/recognition: {str(e)}")
+                results = recognize_and_cleanup(abs_path)
+            except Exception:
                 return Response({'error': 'Error in face detection/recognition.'}, status=http_status.HTTP_500_INTERNAL_SERVER_ERROR)
-            finally:
-                # Clean up temp file
-                try:
-                    os.remove(abs_path)
-                    logger.info("Temporary image file cleaned up")
-                except:
-                    pass
-            
-            # Process results and mark check-out
             response_data = []
             current_datetime = timezone.localtime(timezone.now())
             today = current_datetime.date()
             current_time = current_datetime.time()
-            
             for face in results:
                 try:
                     name = face['name']
-                    box = face['box']
-                    logger.info(f"Processing face for check-out: {name}, box: {box}")
-                    
-                    # Find student
+                    if name.lower() == 'unknown':
+                        response_data.append(build_student_data(face, None, 'unknown', None, None))
+                        continue
                     student = Student.objects.filter(name=name).first()
                     attendance_status = 'unknown'
                     attendance_id = None
                     attendance_details = None
-                    
                     if student:
-                        logger.info(f"Student found for check-out: {student.name}")
-                        
-                        # Check if attendance exists for today
                         existing_attendance = Attendance.objects.filter(
-                            student=student,
-                            date=today,
-                            course=None
+                            student=student, date=today, course=None
                         ).first()
-                        
                         if existing_attendance:
                             if existing_attendance.check_out_time:
-                                # Already checked out today
                                 attendance_status = 'already_checked_out'
                                 attendance_id = existing_attendance.id
                                 attendance_details = {
@@ -984,12 +820,9 @@ class CheckOutAPIView(APIView):
                                     'check_in_time': existing_attendance.check_in_time.strftime('%H:%M') if existing_attendance.check_in_time else None,
                                     'check_out_time': existing_attendance.check_out_time.strftime('%H:%M')
                                 }
-                                logger.info(f"Student already checked out: {existing_attendance.check_out_time}")
                             elif existing_attendance.check_in_time:
-                                # Has check-in but no check-out - mark check-out
                                 existing_attendance.check_out_time = current_time
                                 existing_attendance.save()
-                                
                                 attendance_status = 'checked_out'
                                 attendance_id = existing_attendance.id
                                 attendance_details = {
@@ -997,51 +830,15 @@ class CheckOutAPIView(APIView):
                                     'check_in_time': existing_attendance.check_in_time.strftime('%H:%M'),
                                     'check_out_time': current_time.strftime('%H:%M')
                                 }
-                                logger.info(f"Check-out marked: {current_time}")
                             else:
-                                # Has attendance record but no check-in time (shouldn't happen normally)
                                 attendance_status = 'error'
-                                logger.warning(f"Student has attendance record but no check-in time")
                         else:
-                            # No attendance record for today
                             attendance_status = 'no_check_in'
-                            logger.warning(f"No check-in record found for student: {student.name}")
-                    
-                    # Prepare student data
-                    student_data = {
-                        'name': name,
-                        'box': box,
-                        'attendance_status': attendance_status,
-                        'attendance_id': attendance_id,
-                        'attendance_details': attendance_details,
-                    }
-                    
-                    # Add student details if found
-                    if student:
-                        student_data.update({
-                            'roll_number': student.roll_number,
-                            'department': student.department,
-                            'photo_url': student.image.url if student.image else None,
-                        })
-                    else:
-                        # For unknown faces, still provide structure
-                        student_data.update({
-                            'roll_number': None,
-                            'department': None,
-                            'photo_url': None,
-                        })
-                    
-                    response_data.append(student_data)
-                    
-                except Exception as e:
-                    logger.error(f"Error processing face result for check-out: {str(e)}")
+                    response_data.append(build_student_data(face, student, attendance_status, attendance_id, attendance_details))
+                except Exception:
                     continue
-            
-            logger.info(f"Final check-out response data: {response_data}")
             return Response({'results': response_data}, status=http_status.HTTP_200_OK)
-            
-        except Exception as e:
-            logger.error(f"Unexpected error in CheckOutAPIView: {str(e)}")
+        except Exception:
             return Response({'error': 'Internal server error.'}, status=http_status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -1057,13 +854,11 @@ class RetrainModelAPIView(APIView):
             def retrain_async():
                 try:
                     call_command('retrain_facenet', '--force', verbosity=1)
-                    # Reload models after retraining
                     from .utils.face_pipeline import reload_models
                     reload_models()
                 except Exception as e:
                     logger.error(f"Error in manual retraining: {str(e)}")
             
-            # Start retraining in background thread
             thread = threading.Thread(target=retrain_async)
             thread.daemon = True
             thread.start()
@@ -1078,3 +873,25 @@ class RetrainModelAPIView(APIView):
             return Response({
                 'error': 'Failed to start retraining'
             }, status=http_status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@login_required
+@user_passes_test(is_admin)
+def verify_students(request):
+    if request.method == 'POST':
+        student_id = request.POST.get('student_id')
+        action = request.POST.get('action')
+        student = get_object_or_404(Student, id=student_id)
+        if action == 'verify':
+            student.is_verified = True
+            student.save()
+            messages.success(request, f"Student {student.name} has been verified.")
+        elif action == 'reject':
+            student_name = student.name
+            if student.user:
+                student.user.delete()
+            student.delete()
+            messages.success(request, f"Student {student_name} has been rejected and deleted.")
+        return redirect('verify_students')
+    unverified_students = Student.objects.filter(is_verified=False)
+    context = {'unverified_students': unverified_students, 'unverified_count': get_unverified_count(request)}
+    return render(request, 'teacherDashboard/verify_students.html', context)

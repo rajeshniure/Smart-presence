@@ -1,0 +1,238 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Register Student - Smart Presence{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-10">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h3 class="mb-0"><i class="fas fa-user-plus"></i> Student Registration</h3>
+                </div>
+                <div class="card-body">
+                    <form method="post" enctype="multipart/form-data" id="studentForm">
+                        {% csrf_token %}
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-2"><label for="name" class="form-label">Full Name *</label><input type="text" class="form-control" id="name" name="name" required></div>
+                                <div class="mb-2"><label for="roll_number" class="form-label">Roll Number *</label><input type="text" class="form-control" id="roll_number" name="roll_number" required></div>
+                                <div class="mb-2"><label for="email" class="form-label">Email Address *</label><input type="email" class="form-control" id="email" name="email" required></div>
+                                <div class="mb-2"><label for="phone" class="form-label">Phone Number</label><input type="tel" class="form-control" id="phone" name="phone"></div>
+                                <div class="mb-2"><label for="password" class="form-label">Password *</label><input type="password" class="form-control" id="password" name="password" required><div class="form-text">Set a password for student login. This is required for dashboard access.</div></div>
+                                <div class="mb-2"><label for="confirm_password" class="form-label">Confirm Password *</label><input type="password" class="form-control" id="confirm_password" name="confirm_password" required></div>
+                                <div class="mb-2"><label for="department" class="form-label">Department *</label><select class="form-select" id="department" name="department" required><option value="">Select Department</option><option value="Computer Science">Computer Science</option><option value="Information Technology">Information Technology</option><option value="Electronics">Electronics</option><option value="Mechanical">Mechanical</option><option value="Civil">Civil</option><option value="Electrical">Electrical</option></select></div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3"><label for="image" class="form-label">Upload Photo</label><input type="file" class="form-control" id="image" name="image" accept="image/*"><div class="form-text">Upload a clear photo or use webcam below</div></div>
+                                <div class="webcam-section">
+                                    <div class="camera-preview-container mb-3">
+                                        <div class="camera-wrapper">
+                                            <video id="webcam" autoplay muted playsinline class="camera-element" style="display:none;"></video>
+                                            <canvas id="canvas" class="camera-element" style="display:none;"></canvas>
+                                            <div id="captured-image" class="camera-element" style="display:none;"><img id="preview" class="camera-element" alt="Captured preview"></div>
+                                            <div id="webcam-placeholder" class="camera-element camera-placeholder"><div class="placeholder-content"><i class="fas fa-camera fa-3x mb-3 text-muted"></i><h6 class="text-muted mb-2">Camera Preview</h6><p class="text-muted small mb-0">Click "Start Webcam" to capture photo</p></div></div>
+                                        </div>
+                                    </div>
+                                    <div class="camera-controls">
+                                        <div class="btn-group w-100" role="group">
+                                            <button type="button" class="btn btn-success" id="startWebcam"><i class="fas fa-video"></i> Start Webcam</button>
+                                            <button type="button" class="btn btn-primary" id="captureBtn" style="display:none;"><i class="fas fa-camera"></i> Capture</button>
+                                            <button type="button" class="btn btn-warning" id="retakeBtn" style="display:none;"><i class="fas fa-redo"></i> Retake</button>
+                                            <button type="button" class="btn btn-danger" id="stopWebcam" style="display:none;"><i class="fas fa-stop"></i> Stop</button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <input type="hidden" id="webcam_image" name="webcam_image">
+                            </div>
+                        </div>
+                        <div class="row mt-4">
+                            <div class="col-12">
+                                <hr>
+                                <div class="d-flex justify-content-between">
+                                    <a href="{% url 'home' %}" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Back to Home</a>
+                                    <button type="submit" class="btn btn-primary btn-lg"><i class="fas fa-user-plus"></i> Register Student</button>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- Success Modal -->
+<div class="modal fade" id="successModal" tabindex="-1" aria-labelledby="successModalLabel" aria-hidden="true"><div class="modal-dialog"><div class="modal-content"><div class="modal-header bg-success text-white"><h5 class="modal-title" id="successModalLabel">Registration Successful!</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div><div class="modal-body"><div class="text-center"><i class="fas fa-check-circle fa-4x text-success mb-3"></i><h4>Student registered successfully!</h4><p>The student has been added to the system and is ready for attendance scanning.</p></div></div><div class="modal-footer"><a href="{% url 'register' %}" class="btn btn-primary">Register Another</a><a href="{% url 'students' %}" class="btn btn-success">View Students</a></div></div></div></div>
+<script>
+let webcamStream = null;
+let webcamElement = document.getElementById('webcam');
+let canvasElement = document.getElementById('canvas');
+let capturedImageDiv = document.getElementById('captured-image');
+let previewImg = document.getElementById('preview');
+let placeholderDiv = document.getElementById('webcam-placeholder');
+document.getElementById('startWebcam').onclick = startWebcam;
+document.getElementById('captureBtn').onclick = captureImage;
+document.getElementById('retakeBtn').onclick = retakeImage;
+document.getElementById('stopWebcam').onclick = stopWebcam;
+async function startWebcam() {
+    try {
+        webcamStream = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' } });
+        webcamElement.srcObject = webcamStream;
+        webcamElement.onloadedmetadata = () => {
+            const rect = webcamElement.getBoundingClientRect();
+            canvasElement.width = rect.width;
+            canvasElement.height = rect.height;
+        };
+        placeholderDiv.style.display = 'none';
+        webcamElement.style.display = 'block';
+        document.getElementById('startWebcam').style.display = 'none';
+        document.getElementById('captureBtn').style.display = 'inline-block';
+        document.getElementById('stopWebcam').style.display = 'inline-block';
+    } catch (error) {
+        alert('Error accessing webcam. Please ensure you have given camera permissions.');
+    }
+}
+function captureImage() {
+    const rect = webcamElement.getBoundingClientRect();
+    canvasElement.width = rect.width;
+    canvasElement.height = rect.height;
+    const context = canvasElement.getContext('2d');
+    context.save();
+    context.scale(-1, 1);
+    context.translate(-canvasElement.width, 0);
+    context.drawImage(webcamElement, 0, 0, canvasElement.width, canvasElement.height);
+    context.restore();
+    const imageData = canvasElement.toDataURL('image/jpeg', 0.8);
+    document.getElementById('webcam_image').value = imageData;
+    previewImg.src = imageData;
+    webcamElement.style.display = 'none';
+    capturedImageDiv.style.display = 'block';
+    document.getElementById('captureBtn').style.display = 'none';
+    document.getElementById('retakeBtn').style.display = 'inline-block';
+}
+function retakeImage() {
+    document.getElementById('webcam_image').value = '';
+    capturedImageDiv.style.display = 'none';
+    webcamElement.style.display = 'block';
+    document.getElementById('retakeBtn').style.display = 'none';
+    document.getElementById('captureBtn').style.display = 'inline-block';
+}
+function stopWebcam() {
+    if (webcamStream) webcamStream.getTracks().forEach(track => track.stop());
+    webcamStream = null;
+    document.getElementById('webcam_image').value = '';
+    webcamElement.style.display = 'none';
+    capturedImageDiv.style.display = 'none';
+    placeholderDiv.style.display = 'flex';
+    document.getElementById('startWebcam').style.display = 'inline-block';
+    document.getElementById('captureBtn').style.display = 'none';
+    document.getElementById('retakeBtn').style.display = 'none';
+    document.getElementById('stopWebcam').style.display = 'none';
+}
+
+// Real-time validation
+const form = document.getElementById('studentForm');
+const fields = {
+    name: {
+        el: document.getElementById('name'),
+        error: null,
+        validate: v => {
+            if (v.trim().length < 2) return 'Full Name must be at least 2 characters.';
+            if (!/^[A-Za-z\s]+$/.test(v)) return 'Full Name can only contain letters and spaces.';
+            return true;
+        }
+    },
+    roll_number: {
+        el: document.getElementById('roll_number'),
+        error: null,
+        validate: v => /^[a-zA-Z0-9]+$/.test(v) || 'Roll Number must be alphanumeric.'
+    },
+    email: {
+        el: document.getElementById('email'),
+        error: null,
+        validate: v => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v) || 'Enter a valid email address.'
+    },
+    phone: {
+        el: document.getElementById('phone'),
+        error: null,
+        validate: v => v === '' || /^[0-9\-\+\s\(\)]+$/.test(v) || 'Enter a valid phone number.'
+    },
+    password: {
+        el: document.getElementById('password'),
+        error: null,
+        validate: v => v.length >= 6 || 'Password must be at least 6 characters.'
+    },
+    confirm_password: {
+        el: document.getElementById('confirm_password'),
+        error: null,
+        validate: v => v === document.getElementById('password').value || 'Passwords do not match.'
+    },
+    department: {
+        el: document.getElementById('department'),
+        error: null,
+        validate: v => v !== '' || 'Please select a department.'
+    }
+};
+
+// Add error message containers
+Object.values(fields).forEach(f => {
+    f.error = document.createElement('div');
+    f.error.className = 'invalid-feedback d-block';
+    f.el.parentNode.appendChild(f.error);
+    f.el.addEventListener('input', () => validateField(f));
+    if (f.el.tagName === 'SELECT') {
+        f.el.addEventListener('change', () => validateField(f));
+    }
+});
+
+function validateField(f) {
+    const value = f.el.value;
+    const valid = f.validate(value);
+    if (valid === true) {
+        f.el.classList.remove('is-invalid');
+        f.error.textContent = '';
+        return true;
+    } else {
+        f.el.classList.add('is-invalid');
+        f.error.textContent = valid;
+        return false;
+    }
+}
+
+function validateImageOrWebcam() {
+    const fileInput = document.getElementById('image');
+    const webcamInput = document.getElementById('webcam_image');
+    let errorDiv = document.getElementById('image-error');
+    if (!errorDiv) {
+        errorDiv = document.createElement('div');
+        errorDiv.id = 'image-error';
+        errorDiv.className = 'invalid-feedback d-block';
+        fileInput.parentNode.appendChild(errorDiv);
+    }
+    if (!fileInput.files.length && !webcamInput.value) {
+        errorDiv.textContent = 'Please upload an image or capture one using the webcam.';
+        fileInput.classList.add('is-invalid');
+        return false;
+    } else {
+        errorDiv.textContent = '';
+        fileInput.classList.remove('is-invalid');
+        return true;
+    }
+}
+
+form.addEventListener('submit', function(e) {
+    let valid = true;
+    Object.values(fields).forEach(f => {
+        if (!validateField(f)) valid = false;
+    });
+    if (!validateImageOrWebcam()) valid = false;
+    if (!valid) {
+        e.preventDefault();
+    }
+});
+// Optionally, validate on blur as well
+Object.values(fields).forEach(f => {
+    f.el.addEventListener('blur', () => validateField(f));
+});
+</script>
+{% endblock %} 
