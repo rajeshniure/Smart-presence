@@ -163,10 +163,54 @@ def detect_and_recognize(image_path):
                     # Process the face tensor if available
                     if face_tensor is not None:
                         try:
-                            emb = resnet(face_tensor.unsqueeze(0)).detach().cpu().numpy()
-                            pred = clf.predict(emb)[0]
-                            name = encoder.inverse_transform([pred])[0]
-                            logger.info(f"Face {i+1} recognized as: {name}")
+                            emb = resnet(face_tensor.unsqueeze(0)).detach().cpu().numpy()[0]
+                            
+                            # Load the training embeddings to calculate distances
+                            try:
+                                embeddings_path = 'facenet_embeddings.npy'
+                                labels_path = 'facenet_labels.npy'
+                                
+                                if os.path.exists(embeddings_path) and os.path.exists(labels_path):
+                                    training_embeddings = np.load(embeddings_path)
+                                    training_labels = np.load(labels_path)
+                                    
+                                    # Calculate distances to all training embeddings
+                                    distances = np.linalg.norm(training_embeddings - emb, axis=1)
+                                    min_distance_idx = np.argmin(distances)
+                                    min_distance = distances[min_distance_idx]
+                                    closest_label = training_labels[min_distance_idx]
+                                    
+                                    # Get the face recognition threshold from settings
+                                    try:
+                                        from attendance.models import AttendanceSettings
+                                        settings = AttendanceSettings.get_settings()
+                                        threshold = settings.face_recognition_threshold
+                                    except:
+                                        threshold = 0.9  # Distance threshold - lower is stricter
+                                    
+                                    # Only accept recognition if distance is below threshold
+                                    if min_distance <= threshold:
+                                        name = closest_label
+                                        logger.info(f"Face {i+1} recognized as: {name} (distance: {min_distance:.3f})")
+                                    else:
+                                        name = 'Unknown'
+                                        logger.info(f"Face {i+1} too far from any known face: distance {min_distance:.3f} > {threshold}")
+                                else:
+                                    # Fallback to SVM if embeddings not available
+                                    logger.warning("Training embeddings not found, using SVM fallback")
+                                    pred = clf.predict(emb.reshape(1, -1))[0]
+                                    probabilities = clf.predict_proba(emb.reshape(1, -1))[0]
+                                    confidence = max(probabilities)
+                                    
+                                    if confidence >= 0.7:  # Higher threshold for probabilities
+                                        name = encoder.inverse_transform([pred])[0]
+                                        logger.info(f"Face {i+1} recognized as: {name} (SVM confidence: {confidence:.2f})")
+                                    else:
+                                        name = 'Unknown'
+                                        logger.info(f"Face {i+1} below SVM confidence threshold: {confidence:.2f} < 0.7")
+                            except Exception as e:
+                                logger.error(f"Error in distance calculation: {str(e)}")
+                                name = 'Unknown'
                         except Exception as e:
                             logger.error(f"Error in FaceNet recognition for face {i+1}: {str(e)}")
                             name = 'Unknown'

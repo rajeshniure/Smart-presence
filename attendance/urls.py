@@ -1,6 +1,6 @@
 from django.urls import path
 from . import views
-from .views import ScanAPIView, TestPipelineAPIView, CheckInAPIView, CheckOutAPIView, RetrainModelAPIView
+from .views import ScanAPIView, CheckInAPIView, CheckOutAPIView, RetrainModelAPIView, attendance_edit_api
 
 urlpatterns = [
     # Landing page
@@ -13,7 +13,7 @@ urlpatterns = [
     
     # Teacher/Admin routes (renamed from admin/ to teacher/ to avoid conflict with Django admin)
     path("teacher/dashboard/", views.home, name="home"),
-    path("teacher/register/", views.register, name="register"),
+    path("teacher/verify/", views.verify_students, name="verify_students"),
     path("teacher/students/", views.students, name="students"),
     path("teacher/attendance/", views.attendance, name="attendance"),
     
@@ -27,6 +27,9 @@ urlpatterns = [
     # Universal scan page
     path("scan/", views.scan, name="scan"),
     
+    # Universal registration route
+    path("register/", views.register, name="register"),
+    
     # API endpoints
     path("api/student/<int:student_id>/", views.student_detail_api, name="student_detail_api"),
     path("api/student/<int:student_id>/update/", views.student_update_api, name="student_update_api"),
@@ -36,5 +39,6 @@ urlpatterns = [
     path('api/checkin/', CheckInAPIView.as_view(), name='api_checkin'),
     path('api/checkout/', CheckOutAPIView.as_view(), name='api_checkout'),
     path('api/retrain/', RetrainModelAPIView.as_view(), name='api_retrain'),
-    path('api/test-pipeline/', TestPipelineAPIView.as_view(), name='test_pipeline'),
+
+    path('api/attendance/<int:record_id>/edit/', attendance_edit_api, name='attendance_edit_api'),
 ] 

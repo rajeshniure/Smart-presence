@@ -62,6 +62,10 @@
                                 </div>
                                 <small class="form-text text-muted">Password must be at least 8 characters long.</small>
                             </div>
+                            <div class="mb-4">
+                                <label for="confirm_password" class="form-label">Confirm Password</label>
+                                <input type="password" class="form-control" id="confirm_password" name="confirm_password" placeholder="Re-enter new password">
+                            </div>
                             <div class="d-grid">
                                 <button type="submit" class="btn btn-primary">
                                     <i class="fas fa-save me-2"></i> Save Changes
@@ -230,6 +234,16 @@
         document.getElementById('retakePhoto').style.display = 'none';
         document.getElementById('startCamera').disabled = false;
         capturedImage = null;
+    });
+
+    document.querySelector('form[action="{% url 'student_profile_update' %}"]').addEventListener('submit', function(e) {
+        const password = document.getElementById('password').value;
+        const confirmPassword = document.getElementById('confirm_password').value;
+        if (password && password !== confirmPassword) {
+            e.preventDefault();
+            alert('Passwords do not match.');
+            return false;
+        }
     });
 </script>
 {% endblock %}

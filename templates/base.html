@@ -32,6 +32,13 @@
                         <li class="nav-item">
                             <a class="nav-link" href="{% url 'landing' %}#features"><i class="fas fa-list-check"></i> Features</a>
                         </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'register' %}"><i class="fas fa-user-plus"></i> Register</a>
+                        </li>
+                    {% elif request.user.is_staff or request.user.is_superuser %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'register' %}"><i class="fas fa-user-plus"></i> Register</a>
+                        </li>
                     {% endif %}
                     <li class="nav-item">
                         <a class="nav-link" href="{% url 'scan' %}"><i class="fas fa-camera"></i> Scan</a>
@@ -180,8 +187,8 @@
                             <form action="{% url 'student_login' %}" method="post">
                                 {% csrf_token %}
                                 <div class="mb-3">
-                                    <label for="studentRollNumber" class="form-label">Roll Number</label>
-                                    <input type="text" class="form-control" id="studentRollNumber" name="roll_number" required>
+                                    <label for="studentEmail" class="form-label">Email</label>
+                                    <input type="email" class="form-control" id="studentEmail" name="email" required>
                                 </div>
                                 <div class="mb-3">
                                     <label for="studentPassword" class="form-label">Password</label>

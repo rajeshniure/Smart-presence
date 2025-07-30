@@ -27,8 +27,14 @@
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'register' %}">
-                            <i class="fas fa-user-plus"></i> Register
+                        <a class="nav-link position-relative" href="{% url 'verify_students' %}">
+                            <i class="fas fa-user-check"></i> Verify Students
+                            {% if unverified_count and unverified_count > 0 %}
+                                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size: 0.7em; padding: 0.2em 0.4em;">
+                                    {{ unverified_count }}
+                                    <span class="visually-hidden">students to verify</span>
+                                </span>
+                            {% endif %}
                         </a>
                     </li>
                     <li class="nav-item">

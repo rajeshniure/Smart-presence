@@ -9,28 +9,24 @@
         <div class="col-12">
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <h2><i class="fas fa-users"></i> Student Management</h2>
-                <a href="{% url 'register' %}" class="btn btn-primary">
-                    <i class="fas fa-user-plus"></i> Add New Student
+                <a href="{% url 'verify_students' %}" class="btn btn-success">
+                    <i class="fas fa-user-check"></i> Verify Students
                 </a>
             </div>
 
-            <!-- Search and Filter Section -->
             <div class="card mb-4">
                 <div class="card-body">
                     <form method="GET" class="row g-3">
                         <div class="col-md-6">
                             <label for="search" class="form-label">Search Students</label>
-                            <input type="text" class="form-control" id="search" name="search" 
-                                   placeholder="Search by name or roll number..." value="{{ search_query }}">
+                            <input type="text" class="form-control" id="search" name="search" placeholder="Search by name or roll number..." value="{{ search_query }}">
                         </div>
                         <div class="col-md-4">
                             <label for="department" class="form-label">Filter by Department</label>
                             <select class="form-select" id="department" name="department">
                                 <option value="">All Departments</option>
                                 {% for dept in departments %}
-                                    <option value="{{ dept }}" {% if dept == department_filter %}selected{% endif %}>
-                                        {{ dept }}
-                                    </option>
+                                    <option value="{{ dept }}" {% if dept == department_filter %}selected{% endif %}>{{ dept }}</option>
                                 {% endfor %}
                             </select>
                         </div>
@@ -46,16 +42,14 @@
                 </div>
             </div>
 
-            <!-- Students Count -->
             <div class="alert alert-info">
-                <i class="fas fa-info-circle"></i> 
+                <i class="fas fa-info-circle"></i>
                 Showing {{ students.count }} student{{ students.count|pluralize }}
                 {% if search_query or department_filter %}
                     (filtered results)
                 {% endif %}
             </div>
 
-            <!-- Students Grid -->
             {% if students %}
                 <div class="row">
                     {% for student in students %}
@@ -64,32 +58,35 @@
                                 <div class="card-header bg-light d-flex justify-content-between align-items-center">
                                     <h6 class="card-title mb-0">{{ student.roll_number }}</h6>
                                     <div class="dropdown">
-                                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" 
-                                                data-bs-toggle="dropdown" aria-expanded="false">
+                                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
                                             <i class="fas fa-cog"></i>
                                         </button>
                                         <ul class="dropdown-menu">
-                                            <li><a class="dropdown-item" href="#" onclick="viewStudent({{ student.id }})">
-                                                <i class="fas fa-eye"></i> Details
-                                            </a></li>
-                                            <li><a class="dropdown-item" href="#" onclick="editStudent({{ student.id }})">
-                                                <i class="fas fa-edit"></i> Edit
-                                            </a></li>
+                                            <li>
+                                                <a class="dropdown-item" href="#" onclick="viewStudent({{ student.id }})">
+                                                    <i class="fas fa-eye"></i> Details
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a class="dropdown-item" href="#" onclick="editStudent({{ student.id }})">
+                                                    <i class="fas fa-edit"></i> Edit
+                                                </a>
+                                            </li>
                                             <li><hr class="dropdown-divider"></li>
-                                            <li><a class="dropdown-item text-danger" href="#" onclick="deleteStudent({{ student.id }}, '{{ student.name }}')">
-                                                <i class="fas fa-trash"></i> Delete
-                                            </a></li>
+                                            <li>
+                                                <a class="dropdown-item text-danger" href="#" onclick="deleteStudent({{ student.id }}, '{{ student.name }}')">
+                                                    <i class="fas fa-trash"></i> Delete
+                                                </a>
+                                            </li>
                                         </ul>
                                     </div>
                                 </div>
                                 <div class="card-body text-center">
                                     <div class="mb-3">
                                         {% if student.image %}
-                                            <img src="{{ student.image.url }}" alt="{{ student.name }}" 
-                                                 class="rounded-circle student-photo" width="80" height="80">
+                                            <img src="{{ student.image.url }}" alt="{{ student.name }}" class="rounded-circle student-photo" width="80" height="80">
                                         {% else %}
-                                            <div class="bg-secondary rounded-circle d-flex align-items-center justify-content-center text-white" 
-                                                 style="width: 80px; height: 80px; margin: 0 auto;">
+                                            <div class="bg-secondary rounded-circle d-flex align-items-center justify-content-center text-white" style="width:80px;height:80px;margin:0 auto;">
                                                 <i class="fas fa-user fa-2x"></i>
                                             </div>
                                         {% endif %}
@@ -128,8 +125,8 @@
                         <p>Try adjusting your search criteria or <a href="{% url 'students' %}">view all students</a>.</p>
                     {% else %}
                         <p>No students have been registered yet.</p>
-                        <a href="{% url 'register' %}" class="btn btn-primary">
-                            <i class="fas fa-user-plus"></i> Register First Student
+                        <a href="{% url 'verify_students' %}" class="btn btn-success">
+                            <i class="fas fa-user-check"></i> Go to Verification
                         </a>
                     {% endif %}
                 </div>
@@ -146,9 +143,7 @@
                 <h5 class="modal-title" id="studentModalLabel">Student Details</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body" id="studentModalBody">
-                <!-- Student details will be loaded here -->
-            </div>
+            <div class="modal-body" id="studentModalBody"></div>
         </div>
     </div>
 </div>
@@ -261,90 +256,64 @@ let editImageCapture = null;
 let editStream = null;
 
 function viewStudent(studentId) {
-    // Fetch and display student details
-    fetch(`/api/student/${studentId}/`)
-        .then(response => response.json())
-        .then(data => {
-            document.getElementById('studentModalBody').innerHTML = `
-                <div class="row">
-                    <div class="col-md-4 text-center">
-                        ${data.image ? 
-                            `<div style="width: 150px; height: 150px; border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center; margin: 0 auto;">
-                                <img src="${data.image}" alt="${data.name}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">
-                            </div>` :
-                            `<div class="bg-secondary rounded-circle d-flex align-items-center justify-content-center text-white mx-auto" style="width: 150px; height: 150px;">
-                                <i class="fas fa-user fa-4x"></i>
-                            </div>`
-                        }
-                    </div>
-                    <div class="col-md-8">
-                        <table class="table table-borderless table-primary">
-                            <tr><th>Name:</th><td>${data.name}</td></tr>
-                            <tr><th>Roll Number:</th><td>${data.roll_number}</td></tr>
-                            <tr><th>Email:</th><td>${data.email}</td></tr>
-                            <tr><th>Phone:</th><td>${data.phone || 'Not provided'}</td></tr>
-                            <tr><th>Department:</th><td>${data.department}</td></tr>
-                            <tr><th>Registered:</th><td>${new Date(data.created_at).toLocaleDateString()}</td></tr>
-                        </table>
-                    </div>
+    fetch(`/api/student/${studentId}/`).then(r => r.json()).then(data => {
+        document.getElementById('studentModalBody').innerHTML = `
+            <div class="row">
+                <div class="col-md-4 text-center">
+                    ${data.image ?
+                        `<div style="width:150px;height:150px;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center;margin:0 auto;">
+                            <img src="${data.image}" alt="${data.name}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">
+                        </div>` :
+                        `<div class="bg-secondary rounded-circle d-flex align-items-center justify-content-center text-white mx-auto" style="width:150px;height:150px;">
+                            <i class="fas fa-user fa-4x"></i>
+                        </div>`
+                    }
                 </div>
-            `;
-            new bootstrap.Modal(document.getElementById('studentModal')).show();
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Error loading student details');
-        });
+                <div class="col-md-8">
+                    <table class="table table-borderless table-primary">
+                        <tr><th>Name:</th><td>${data.name}</td></tr>
+                        <tr><th>Roll Number:</th><td>${data.roll_number}</td></tr>
+                        <tr><th>Email:</th><td>${data.email}</td></tr>
+                        <tr><th>Phone:</th><td>${data.phone || 'Not provided'}</td></tr>
+                        <tr><th>Department:</th><td>${data.department}</td></tr>
+                        <tr><th>Registered:</th><td>${new Date(data.created_at).toLocaleDateString()}</td></tr>
+                    </table>
+                </div>
+            </div>
+        `;
+        new bootstrap.Modal(document.getElementById('studentModal')).show();
+    }).catch(() => alert('Error loading student details'));
 }
 
 function editStudent(studentId) {
     editStudentId = studentId;
-    
-    // Reset form and error message
     document.getElementById('editErrorMessage').style.display = 'none';
     document.getElementById('editErrorMessage').textContent = '';
-    
-    // Stop any previous stream
     if (editStream) {
         editStream.getTracks().forEach(track => track.stop());
         editStream = null;
     }
-    
-    // Reset camera elements
     document.getElementById('editWebcam').style.display = 'block';
     document.getElementById('editCanvas').style.display = 'none';
     document.getElementById('editPreview').style.display = 'none';
     document.getElementById('startEditCamera').disabled = false;
     document.getElementById('captureEditPhoto').disabled = true;
     document.getElementById('retakeEditPhoto').style.display = 'none';
-    
-    // Fetch student data
-    fetch(`/api/student/${studentId}/`)
-        .then(response => response.json())
-        .then(data => {
-            // Populate form fields
-            document.getElementById('editStudentId').value = data.id;
-            document.getElementById('editName').value = data.name;
-            document.getElementById('editRollNumber').value = data.roll_number;
-            document.getElementById('editEmail').value = data.email;
-            document.getElementById('editPhone').value = data.phone || '';
-            document.getElementById('editDepartment').value = data.department;
-            
-            // Show current image if available
-            if (data.image) {
-                document.getElementById('currentImageContainer').style.display = 'block';
-                document.getElementById('currentStudentImage').src = data.image;
-            } else {
-                document.getElementById('currentImageContainer').style.display = 'none';
-            }
-            
-            // Show modal
-            new bootstrap.Modal(document.getElementById('editModal')).show();
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Error loading student data for editing');
-        });
+    fetch(`/api/student/${studentId}/`).then(r => r.json()).then(data => {
+        document.getElementById('editStudentId').value = data.id;
+        document.getElementById('editName').value = data.name;
+        document.getElementById('editRollNumber').value = data.roll_number;
+        document.getElementById('editEmail').value = data.email;
+        document.getElementById('editPhone').value = data.phone || '';
+        document.getElementById('editDepartment').value = data.department;
+        if (data.image) {
+            document.getElementById('currentImageContainer').style.display = 'block';
+            document.getElementById('currentStudentImage').src = data.image;
+        } else {
+            document.getElementById('currentImageContainer').style.display = 'none';
+        }
+        new bootstrap.Modal(document.getElementById('editModal')).show();
+    }).catch(() => alert('Error loading student data for editing'));
 }
 
 function deleteStudent(studentId, studentName) {
@@ -353,96 +322,60 @@ function deleteStudent(studentId, studentName) {
     new bootstrap.Modal(document.getElementById('deleteModal')).show();
 }
 
-// Edit student camera functions
-document.getElementById('startEditCamera').addEventListener('click', function() {
+document.getElementById('startEditCamera').onclick = function () {
     if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-        navigator.mediaDevices.getUserMedia({ video: true })
-            .then(function(stream) {
-                const video = document.getElementById('editWebcam');
-                video.srcObject = stream;
-                editStream = stream;
-                video.play();
-                document.getElementById('captureEditPhoto').disabled = false;
-                document.getElementById('startEditCamera').disabled = true;
-            })
-            .catch(function(error) {
-                console.error("Camera error: ", error);
-                alert("Could not access the camera. Please make sure it's connected and permissions are granted.");
-            });
+        navigator.mediaDevices.getUserMedia({ video: true }).then(function (stream) {
+            const video = document.getElementById('editWebcam');
+            video.srcObject = stream;
+            editStream = stream;
+            video.play();
+            document.getElementById('captureEditPhoto').disabled = false;
+            document.getElementById('startEditCamera').disabled = true;
+        }).catch(() => alert("Could not access the camera. Please make sure it's connected and permissions are granted."));
     } else {
         alert("Sorry, your browser does not support camera access.");
     }
-});
+};
 
-document.getElementById('captureEditPhoto').addEventListener('click', function() {
+document.getElementById('captureEditPhoto').onclick = function () {
     const video = document.getElementById('editWebcam');
     const canvas = document.getElementById('editCanvas');
     const preview = document.getElementById('editPreview');
-    
-    // Set canvas dimensions to match video
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
-    
-    // Draw video frame to canvas
     const context = canvas.getContext('2d');
     context.drawImage(video, 0, 0, canvas.width, canvas.height);
-    
-    // Convert canvas to image for preview
     preview.src = canvas.toDataURL('image/jpeg');
-    
-    // Show preview, hide video
     video.style.display = 'none';
     canvas.style.display = 'none';
     preview.style.display = 'block';
-    
-    // Update buttons
     document.getElementById('captureEditPhoto').disabled = true;
     document.getElementById('retakeEditPhoto').style.display = 'inline-block';
-    
-    // Store image data
     editImageCapture = canvas.toDataURL('image/jpeg');
-});
+};
 
-document.getElementById('retakeEditPhoto').addEventListener('click', function() {
-    // Reset to camera view
+document.getElementById('retakeEditPhoto').onclick = function () {
     document.getElementById('editWebcam').style.display = 'block';
     document.getElementById('editPreview').style.display = 'none';
     document.getElementById('captureEditPhoto').disabled = false;
     document.getElementById('retakeEditPhoto').style.display = 'none';
     editImageCapture = null;
-});
+};
 
-document.getElementById('saveEditButton').addEventListener('click', function() {
+document.getElementById('saveEditButton').onclick = function () {
     if (!editStudentId) return;
-    
     const name = document.getElementById('editName').value;
     const rollNumber = document.getElementById('editRollNumber').value;
     const email = document.getElementById('editEmail').value;
     const phone = document.getElementById('editPhone').value;
     const department = document.getElementById('editDepartment').value;
-    
-    // Validate form
     if (!name || !rollNumber || !email || !department) {
         document.getElementById('editErrorMessage').textContent = 'Please fill all required fields.';
         document.getElementById('editErrorMessage').style.display = 'block';
         return;
     }
-    
-    // Prepare data for API
-    const data = {
-        name: name,
-        roll_number: rollNumber,
-        email: email,
-        phone: phone,
-        department: department
-    };
-    
-    // Add image if captured
-    if (editImageCapture) {
-        data.webcam_image = editImageCapture;
-    }
-    
-    // Send update request
+    const data = { name, roll_number: rollNumber, email, phone, department };
+    if (editImageCapture) data.webcam_image = editImageCapture;
     fetch(`/api/student/${editStudentId}/update/`, {
         method: 'POST',
         headers: {
@@ -450,27 +383,20 @@ document.getElementById('saveEditButton').addEventListener('click', function() {
             'Content-Type': 'application/json',
         },
         body: JSON.stringify(data)
-    })
-    .then(response => response.json())
-    .then(data => {
+    }).then(r => r.json()).then(data => {
         if (data.success) {
-            // Close modal and reload page to show updated data
             bootstrap.Modal.getInstance(document.getElementById('editModal')).hide();
             location.reload();
         } else {
-            // Show error message
             document.getElementById('editErrorMessage').textContent = data.message;
             document.getElementById('editErrorMessage').style.display = 'block';
         }
-    })
-    .catch(error => {
-        console.error('Error:', error);
+    }).catch(() => {
         document.getElementById('editErrorMessage').textContent = 'An error occurred while updating the student.';
         document.getElementById('editErrorMessage').style.display = 'block';
     });
-});
+};
 
-// Clean up camera when modal is closed
 document.getElementById('editModal').addEventListener('hidden.bs.modal', function () {
     if (editStream) {
         editStream.getTracks().forEach(track => track.stop());
@@ -478,41 +404,29 @@ document.getElementById('editModal').addEventListener('hidden.bs.modal', functio
     }
 });
 
-document.getElementById('confirmDelete').addEventListener('click', function() {
+document.getElementById('confirmDelete').onclick = function () {
     if (studentToDelete) {
-        // Send delete request
         fetch(`/api/student/${studentToDelete}/delete/`, {
             method: 'POST',
             headers: {
                 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
                 'Content-Type': 'application/json',
             },
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                location.reload();
-            } else {
-                alert('Error deleting student');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Error deleting student');
-        });
+        }).then(r => r.json()).then(data => {
+            if (data.success) location.reload();
+            else alert('Error deleting student');
+        }).catch(() => alert('Error deleting student'));
     }
-});
+};
 </script>
 
 <style>
 .student-card {
     transition: transform 0.2s;
 }
-
 .student-card:hover {
     transform: translateY(-5px);
 }
-
 .student-photo {
     object-fit: cover;
 }
