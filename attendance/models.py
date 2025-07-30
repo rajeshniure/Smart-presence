@@ -39,6 +39,7 @@ class Student(models.Model):
     graduation_year = models.IntegerField(null=True, blank=True)
     address = models.TextField(blank=True)
     date_of_birth = models.DateField(null=True, blank=True)
+    is_verified = models.BooleanField(default=False)
     
     def __str__(self):
         return f"{self.name} ({self.roll_number})"
@@ -182,7 +183,7 @@ class AttendanceSettings(models.Model):
     late_threshold = models.TimeField(default=time(10, 0))     # Default 10:00 AM
     absent_threshold = models.TimeField(default=time(10, 30))  # Default 10:30 AM
     min_attendance_percentage = models.FloatField(default=75.0)  # Minimum attendance required (%)
-    face_recognition_threshold = models.FloatField(default=0.6)  # Confidence threshold for face recognition
+    face_recognition_threshold = models.FloatField(default=0.9)  # Distance threshold for face recognition (lower = stricter)
     allow_late_marking = models.BooleanField(default=True)
     updated_at = models.DateTimeField(auto_now=True)
     
