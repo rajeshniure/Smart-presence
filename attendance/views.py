@@ -9,7 +9,7 @@ from django.db import IntegrityError
 from django.db.models import Count
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-from .models import Student, Attendance, EmotionLog, Course
+from .models import Student, Attendance, EmotionLog, Course, StudentPerformance
 import base64
 import json
 from datetime import date, datetime
@@ -254,7 +254,14 @@ def students(request):
         students = students.filter(department=department_filter)
     
     # Get unique departments for filter dropdown
-    departments = Student.objects.values_list('department', flat=True).distinct()
+    departments = (
+        Student.objects
+        .exclude(department__isnull=True)
+        .exclude(department__exact="")
+        .values_list('department', flat=True)
+        .distinct()
+        .order_by('department')
+    )
     
     context = {
         'students': students,
@@ -895,3 +902,142 @@ def verify_students(request):
     unverified_students = Student.objects.filter(is_verified=False)
     context = {'unverified_students': unverified_students, 'unverified_count': get_unverified_count(request)}
     return render(request, 'teacherDashboard/verify_students.html', context)
+
+
+@login_required
+@user_passes_test(is_admin)
+def performance_prediction(request):
+    """Performance prediction page for students"""
+    students = Student.objects.filter(is_verified=True).order_by('name')
+    predictions = StudentPerformance.objects.select_related('student').order_by('-created_at')
+    
+    # Handle search functionality
+    search_query = request.GET.get('search', '')
+    if search_query:
+        students = students.filter(name__icontains=search_query)
+        predictions = predictions.filter(student__name__icontains=search_query)
+    
+    # Handle form submission for new prediction
+    if request.method == 'POST':
+        try:
+            student_id = request.POST.get('student_id')
+            student = get_object_or_404(Student, id=student_id)
+            
+            # Get form data
+            attendance_score = float(request.POST.get('attendance_score', 0))
+            previous_grades = float(request.POST.get('previous_grades', 0))
+            assignment_completion = float(request.POST.get('assignment_completion', 0))
+            class_activeness = float(request.POST.get('class_activeness', 0))
+            
+            # Get weights (optional, use defaults if not provided)
+            attendance_weight = float(request.POST.get('attendance_weight', 30.0))
+            grades_weight = float(request.POST.get('grades_weight', 40.0))
+            assignment_weight = float(request.POST.get('assignment_weight', 20.0))
+            activeness_weight = float(request.POST.get('activeness_weight', 10.0))
+            
+            # Validate weights sum to 100%
+            total_weight = attendance_weight + grades_weight + assignment_weight + activeness_weight
+            if abs(total_weight - 100.0) > 0.1:  # Allow small floating point differences
+                messages.error(request, f'Weights must sum to 100%. Current sum: {total_weight:.1f}%')
+                return redirect('performance_prediction')
+            
+            # Validate score ranges
+            scores = [attendance_score, previous_grades, assignment_completion, class_activeness]
+            weights = [attendance_weight, grades_weight, assignment_weight, activeness_weight]
+            
+            for score in scores:
+                if not (0 <= score <= 100):
+                    messages.error(request, 'All scores must be between 0 and 100.')
+                    return redirect('performance_prediction')
+            
+            for weight in weights:
+                if weight < 0:
+                    messages.error(request, 'All weights must be positive numbers.')
+                    return redirect('performance_prediction')
+            
+            # Create or update performance prediction
+            performance, created = StudentPerformance.objects.update_or_create(
+                student=student,
+                defaults={
+                    'attendance_score': attendance_score,
+                    'previous_grades': previous_grades,
+                    'assignment_completion': assignment_completion,
+                    'class_activeness': class_activeness,
+                    'attendance_weight': attendance_weight,
+                    'grades_weight': grades_weight,
+                    'assignment_weight': assignment_weight,
+                    'activeness_weight': activeness_weight,
+                    'predicted_by': request.user,
+                }
+            )
+            
+            action = "created" if created else "updated"
+            messages.success(request, 
+                f'Performance prediction {action} for {student.name}. '
+                f'Overall Score: {performance.overall_score:.1f}% '
+                f'({performance.get_performance_category_display()})')
+            
+        except ValueError as e:
+            messages.error(request, 'Invalid input values. Please enter valid numbers.')
+        except Exception as e:
+            messages.error(request, f'An error occurred: {str(e)}')
+        
+        return redirect('performance_prediction')
+    
+    # Paginate predictions
+    paginator = Paginator(predictions, 10)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'students': students,
+        'predictions': page_obj,
+        'search_query': search_query,
+        'unverified_count': get_unverified_count(request),
+    }
+    
+    return render(request, 'teacherDashboard/performance_prediction.html', context)
+
+
+@csrf_exempt
+def performance_prediction_api(request, student_id):
+    """API endpoint to get/update student performance prediction"""
+    student = get_object_or_404(Student, id=student_id)
+    
+    if request.method == 'GET':
+        # Get existing prediction or return default values
+        try:
+            performance = StudentPerformance.objects.get(student=student)
+            data = {
+                'success': True,
+                'student_name': student.name,
+                'attendance_score': performance.attendance_score,
+                'previous_grades': performance.previous_grades,
+                'assignment_completion': performance.assignment_completion,
+                'class_activeness': performance.class_activeness,
+                'attendance_weight': performance.attendance_weight,
+                'grades_weight': performance.grades_weight,
+                'assignment_weight': performance.assignment_weight,
+                'activeness_weight': performance.activeness_weight,
+                'overall_score': performance.overall_score,
+                'performance_category': performance.get_performance_category_display(),
+            }
+        except StudentPerformance.DoesNotExist:
+            data = {
+                'success': True,
+                'student_name': student.name,
+                'attendance_score': 0,
+                'previous_grades': 0,
+                'assignment_completion': 0,
+                'class_activeness': 0,
+                'attendance_weight': 30.0,
+                'grades_weight': 40.0,
+                'assignment_weight': 20.0,
+                'activeness_weight': 10.0,
+                'overall_score': 0,
+                'performance_category': 'Not predicted yet',
+            }
+        
+        return JsonResponse(data)
+    
+    return JsonResponse({'success': False, 'message': 'Invalid request method'})

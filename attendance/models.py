@@ -1,6 +1,7 @@
 from django.db import models
 from django.utils import timezone
 from django.contrib.auth.models import User
+from django.core.validators import MinValueValidator, MaxValueValidator
 from datetime import time, timedelta
 import logging
 
@@ -248,5 +249,105 @@ class AttendanceReport(models.Model):
     
     class Meta:
         ordering = ['-created_at']
+
+
+class StudentPerformance(models.Model):
+    """Student performance prediction data"""
+    PERFORMANCE_CATEGORIES = [
+        ('excellent', 'Excellent (90-100)'),
+        ('very_good', 'Very Good (80-89)'),
+        ('good', 'Good (70-79)'),
+        ('satisfactory', 'Satisfactory (60-69)'),
+        ('needs_improvement', 'Needs Improvement (50-59)'),
+        ('poor', 'Poor (Below 50)'),
+    ]
+    
+    student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='performance_predictions')
+    
+    # Input parameters (0-100 scale)
+    attendance_score = models.FloatField(
+        help_text="Attendance percentage (0-100)",
+        validators=[MinValueValidator(0), MaxValueValidator(100)]
+    )
+    previous_grades = models.FloatField(
+        help_text="Previous grades average (0-100)",
+        validators=[MinValueValidator(0), MaxValueValidator(100)]
+    )
+    assignment_completion = models.FloatField(
+        help_text="Assignment completion rate (0-100)",
+        validators=[MinValueValidator(0), MaxValueValidator(100)]
+    )
+    class_activeness = models.FloatField(
+        help_text="Class participation and activeness (0-100)",
+        validators=[MinValueValidator(0), MaxValueValidator(100)]
+    )
+    
+    # Weights for weighted average (should sum to 100)
+    attendance_weight = models.FloatField(default=30.0, help_text="Weight for attendance (default 30%)")
+    grades_weight = models.FloatField(default=40.0, help_text="Weight for previous grades (default 40%)")
+    assignment_weight = models.FloatField(default=20.0, help_text="Weight for assignments (default 20%)")
+    activeness_weight = models.FloatField(default=10.0, help_text="Weight for class activeness (default 10%)")
+    
+    # Calculated results
+    overall_score = models.FloatField(editable=False)
+    performance_category = models.CharField(max_length=20, choices=PERFORMANCE_CATEGORIES, editable=False)
+    
+    # Metadata
+    predicted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='performance_predictions')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    def save(self, *args, **kwargs):
+        """Calculate overall score and performance category before saving"""
+        # Calculate weighted average
+        total_weight = self.attendance_weight + self.grades_weight + self.assignment_weight + self.activeness_weight
+        
+        if total_weight > 0:
+            self.overall_score = (
+                (self.attendance_score * self.attendance_weight) +
+                (self.previous_grades * self.grades_weight) +
+                (self.assignment_completion * self.assignment_weight) +
+                (self.class_activeness * self.activeness_weight)
+            ) / total_weight
+        else:
+            self.overall_score = 0
+        
+        # Determine performance category
+        if self.overall_score >= 90:
+            self.performance_category = 'excellent'
+        elif self.overall_score >= 80:
+            self.performance_category = 'very_good'
+        elif self.overall_score >= 70:
+            self.performance_category = 'good'
+        elif self.overall_score >= 60:
+            self.performance_category = 'satisfactory'
+        elif self.overall_score >= 50:
+            self.performance_category = 'needs_improvement'
+        else:
+            self.performance_category = 'poor'
+        
+        super().save(*args, **kwargs)
+    
+    def get_category_display_with_color(self):
+        """Get performance category with appropriate CSS class"""
+        category_colors = {
+            'excellent': 'success',
+            'very_good': 'info',
+            'good': 'primary',
+            'satisfactory': 'warning',
+            'needs_improvement': 'warning',
+            'poor': 'danger',
+        }
+        return {
+            'category': self.get_performance_category_display(),
+            'color': category_colors.get(self.performance_category, 'secondary')
+        }
+    
+    def __str__(self):
+        return f"{self.student.name} - {self.overall_score:.1f}% ({self.get_performance_category_display()})"
+    
+    class Meta:
+        ordering = ['-created_at']
+        unique_together = ['student'] 
 
 

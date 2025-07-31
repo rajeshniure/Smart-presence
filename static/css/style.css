@@ -47,7 +47,6 @@ p, span, div {
   color: var(--text-muted) !important;
 }
 
-/* Navbar */
 .navbar {
   background: linear-gradient(135deg, #1a365d 0%, #2c5282 50%, #3182ce 100%) !important;
   box-shadow: var(--shadow-md);
@@ -87,7 +86,6 @@ p, span, div {
   color: black !important;
 }
 
-/* Cards */
 .card {
   border: 1px solid var(--border-color);
   border-radius: var(--border-radius);

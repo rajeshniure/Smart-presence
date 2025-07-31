@@ -2,7 +2,7 @@ from django.contrib import admin
 from .models import (
     Student, Attendance, EmotionLog, Department, Course, 
     ClassSchedule, CourseEnrollment, AttendanceSettings,
-    Notification, AttendanceReport
+    Notification, AttendanceReport, StudentPerformance
 )
 
 # Register your models here.
@@ -84,7 +84,6 @@ class StudentAdmin(admin.ModelAdmin):
         def retrain_async():
             try:
                 call_command('retrain_facenet', '--force', verbosity=1)
-                # Reload models after retraining
                 from attendance.utils.face_pipeline import reload_models
                 reload_models()
             except Exception as e:
@@ -148,3 +147,37 @@ class AttendanceReportAdmin(admin.ModelAdmin):
     search_fields = ['title', 'department__name', 'course__name']
     date_hierarchy = 'created_at'
     ordering = ['-created_at']
+
+
+@admin.register(StudentPerformance)
+class StudentPerformanceAdmin(admin.ModelAdmin):
+    list_display = ['student', 'overall_score', 'performance_category', 'predicted_by', 'created_at']
+    list_filter = ['performance_category', 'created_at', 'student__department']
+    search_fields = ['student__name', 'student__roll_number', 'predicted_by__username']
+    readonly_fields = ['overall_score', 'performance_category']
+    date_hierarchy = 'created_at'
+    ordering = ['-created_at']
+    
+    fieldsets = (
+        ('Student Information', {
+            'fields': ('student', 'predicted_by')
+        }),
+        ('Performance Metrics (0-100)', {
+            'fields': ('attendance_score', 'previous_grades', 'assignment_completion', 'class_activeness'),
+            'description': 'Enter values between 0 and 100 for each performance metric.'
+        }),
+        ('Weights Configuration (%)', {
+            'fields': ('attendance_weight', 'grades_weight', 'assignment_weight', 'activeness_weight'),
+            'description': 'Weights for the weighted average calculation. Should sum to 100%.'
+        }),
+        ('Calculated Results', {
+            'fields': ('overall_score', 'performance_category'),
+            'description': 'These fields are automatically calculated based on the metrics and weights above.'
+        }),
+    )
+    
+    def save_model(self, request, obj, form, change):
+        """Set the predicted_by field to the current user if not set"""
+        if not obj.predicted_by:
+            obj.predicted_by = request.user
+        super().save_model(request, obj, form, change)
