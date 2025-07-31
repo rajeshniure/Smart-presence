@@ -1,0 +1,729 @@
+{% extends 'teacherDashboard/base.html' %}
+{% load static %}
+
+{% block title %}Performance Prediction - Teacher Dashboard{% endblock %}
+
+{% block extra_css %}
+<style>
+    .performance-header {
+        background: var(--bg-primary);
+        border: 1px solid var(--border-color);
+        border-radius: var(--border-radius);
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+        box-shadow: var(--shadow-sm);
+    }
+
+    .performance-card {
+        background: var(--bg-primary);
+        border: 1px solid var(--border-color);
+        border-radius: var(--border-radius);
+        transition: var(--transition);
+        overflow: hidden;
+    }
+
+    .performance-card:hover {
+        transform: translateY(-3px);
+        box-shadow: var(--shadow-md);
+        border-color: var(--primary-color);
+    }
+
+    .score-display {
+        font-size: 2.2rem;
+        font-weight: 700;
+        color: var(--primary-color);
+    }
+
+    .category-badge {
+        font-size: 0.875rem;
+        font-weight: 600;
+        padding: 0.4rem 0.8rem;
+        border-radius: 15px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .form-control, .form-select {
+        background-color: var(--bg-primary);
+        border-color: var(--border-color);
+        color: var(--text-primary);
+        font-size: 0.95rem;
+        padding: 0.75rem;
+        border-radius: var(--border-radius);
+    }
+
+    .form-control:focus, .form-select:focus {
+        background-color: var(--bg-secondary);
+        border-color: var(--primary-color);
+        color: var(--text-primary);
+    }
+
+    /* Placeholder text styling for better readability */
+    .form-control::placeholder {
+        color: #a0aec0 !important;
+        opacity: 1;
+        font-style: italic;
+        font-weight: 400;
+    }
+
+    .form-control:focus::placeholder {
+        color: #cbd5e0 !important;
+        opacity: 0.8;
+    }
+
+    /* Browser-specific placeholder styling */
+    .form-control::-webkit-input-placeholder {
+        color: #a0aec0 !important;
+        opacity: 1;
+        font-style: italic;
+    }
+
+    .form-control::-moz-placeholder {
+        color: #a0aec0 !important;
+        opacity: 1;
+        font-style: italic;
+    }
+
+    .form-control:-ms-input-placeholder {
+        color: #a0aec0 !important;
+        opacity: 1;
+        font-style: italic;
+    }
+
+    .form-control:-moz-placeholder {
+        color: #a0aec0 !important;
+        opacity: 1;
+        font-style: italic;
+    }
+
+    .form-label {
+        color: var(--text-primary);
+        font-size: 0.9rem;
+        font-weight: 500;
+        margin-bottom: 0.5rem;
+        display: block;
+        line-height: 1.4;
+    }
+
+    .text-muted, small {
+        color: var(--text-muted) !important;
+        font-size: 0.8rem;
+        line-height: 1.3;
+        margin-top: 0.25rem;
+        display: block;
+    }
+
+    .prediction-form {
+        background: var(--bg-primary);
+        border: 1px solid var(--border-color);
+        border-radius: var(--border-radius);
+        box-shadow: var(--shadow-sm);
+    }
+
+    .btn-predict {
+        background: linear-gradient(135deg, var(--primary-color) 0%, #4299e1 100%);
+        border: none;
+        color: white;
+        font-weight: 600;
+        padding: 0.75rem 2rem;
+        border-radius: var(--border-radius);
+        transition: var(--transition);
+    }
+
+    .btn-predict:hover {
+        background: linear-gradient(135deg, #4299e1 0%, var(--primary-color) 100%);
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-sm);
+        color: white;
+    }
+
+    .preview-card {
+        background: var(--bg-primary);
+        border: 2px solid var(--primary-color);
+        border-radius: var(--border-radius);
+        padding: 1.25rem;
+        box-shadow: var(--shadow-sm);
+    }
+
+    .preview-card h6 {
+        color: var(--text-primary);
+        font-weight: 600;
+        border-bottom: 1px solid var(--border-color);
+        padding-bottom: 0.5rem;
+    }
+
+    .metric-display {
+        background: var(--bg-secondary);
+        border-radius: var(--border-radius);
+        padding: 0.75rem;
+        text-align: center;
+        border: 1px solid var(--border-color);
+    }
+
+    .metric-value {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: var(--primary-color);
+    }
+
+    .metric-label {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .search-box {
+        background-color: var(--bg-secondary);
+        border-color: var(--border-color);
+        color: var(--text-primary);
+        border-radius: var(--border-radius);
+    }
+
+    .search-box:focus {
+        background-color: var(--bg-secondary);
+        border-color: var(--primary-color);
+        color: var(--text-primary);
+        box-shadow: 0 0 0 0.25rem rgba(49, 130, 206, 0.25);
+    }
+
+    .btn-action {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border-color);
+        color: var(--text-primary);
+        border-radius: var(--border-radius);
+        transition: var(--transition);
+        font-weight: 500;
+        padding: 0.6rem 1rem;
+    }
+
+    .btn-action:hover {
+        background: var(--primary-color);
+        border-color: var(--primary-color);
+        color: white;
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-sm);
+    }
+
+    .weight-indicator {
+        font-size: 0.9rem;
+        color: var(--text-primary);
+        background: var(--bg-secondary);
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        display: inline-block;
+        border: 1px solid var(--border-color);
+        font-weight: 500;
+    }
+
+    .section-title {
+        color: var(--text-primary);
+        font-weight: 600;
+        margin-bottom: 1rem;
+        border-bottom: 2px solid var(--primary-color);
+        padding-bottom: 0.5rem;
+    }
+
+    .predictions-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+        gap: 1.5rem;
+    }
+
+    .form-section {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border-color);
+        border-radius: var(--border-radius);
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .form-section-title {
+        color: var(--text-primary);
+        font-size: 1.1rem;
+        font-weight: 600;
+        margin-bottom: 1.5rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 2px solid var(--primary-color);
+        display: flex;
+        align-items: center;
+    }
+
+    .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .form-group {
+        margin-bottom: 1.25rem;
+    }
+
+    .section-divider {
+        height: 2px;
+        background: linear-gradient(90deg, var(--primary-color) 0%, transparent 100%);
+        margin: 2rem 0;
+        border-radius: 1px;
+    }
+
+    @media (max-width: 768px) {
+        .form-row {
+            grid-template-columns: 1fr;
+            gap: 1rem;
+        }
+        .predictions-grid {
+            grid-template-columns: 1fr;
+        }
+        .form-section {
+            padding: 1rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="performance-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h2 class="mb-2">
+                    <i class="fas fa-chart-line text-primary me-2"></i>
+                    Performance Prediction
+                </h2>
+                <div class="d-flex align-items-center gap-3">
+                    <span class="weight-indicator">
+                        <i class="fas fa-calculator me-1"></i>
+                        Weighted Algorithm
+                    </span>
+                    <span class="weight-indicator">
+                        <i class="fas fa-users me-1"></i>
+                        {{ predictions.paginator.count }} Predictions
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Prediction Form -->
+    <div class="prediction-form p-4 mb-4">
+        <h4 class="section-title">
+            <i class="fas fa-plus-circle me-2"></i>Create Performance Prediction
+        </h4>
+        
+        <form method="POST" id="predictionForm">
+            {% csrf_token %}
+            
+            <!-- Student Selection Section -->
+            <div class="form-section">
+                <h5 class="form-section-title">
+                    <i class="fas fa-user-graduate me-2"></i>Student Selection
+                </h5>
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label for="student_id" class="form-label">Select Student</label>
+                            <select class="form-select" id="student_id" name="student_id" required>
+                                <option value="">Choose student...</option>
+                                {% for student in students %}
+                                    <option value="{{ student.id }}">{{ student.name }} ({{ student.roll_number }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-4 d-flex align-items-end">
+                        <div class="form-group w-100">
+                            <button type="button" class="btn btn-action w-100" onclick="loadStudentData()">
+                                <i class="fas fa-sync me-2"></i>Load Existing Data
+                            </button>
+                        </div>
+                    </div>
+                    <div class="col-md-4 d-flex align-items-end">
+                        <div class="form-group w-100">
+                            <button type="button" class="btn btn-action w-100" onclick="resetForm()">
+                                <i class="fas fa-undo me-2"></i>Reset Form
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <!-- Performance Metrics Section -->
+                <div class="col-lg-6">
+                    <div class="form-section">
+                        <h5 class="form-section-title">
+                            <i class="fas fa-chart-bar me-2"></i>Performance Metrics
+                        </h5>
+                        <p class="text-muted mb-3">Enter performance scores between 0-100 for each category</p>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="attendance_score" class="form-label">
+                                    <i class="fas fa-calendar-check me-1 text-primary"></i>Attendance Percentage
+                                </label>
+                                <input type="number" class="form-control" id="attendance_score" name="attendance_score" 
+                                       min="0" max="100" step="0.1" placeholder="0-100" required>
+                                <small class="text-muted">Student's overall attendance rate</small>
+                            </div>
+                            <div class="form-group">
+                                <label for="previous_grades" class="form-label">
+                                    <i class="fas fa-graduation-cap me-1 text-success"></i>Previous Grades Average
+                                </label>
+                                <input type="number" class="form-control" id="previous_grades" name="previous_grades" 
+                                       min="0" max="100" step="0.1" placeholder="0-100" required>
+                                <small class="text-muted">Historical academic performance</small>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="assignment_completion" class="form-label">
+                                    <i class="fas fa-tasks me-1 text-warning"></i>Assignment Completion Rate
+                                </label>
+                                <input type="number" class="form-control" id="assignment_completion" name="assignment_completion" 
+                                       min="0" max="100" step="0.1" placeholder="0-100" required>
+                                <small class="text-muted">Percentage of assignments completed</small>
+                            </div>
+                            <div class="form-group">
+                                <label for="class_activeness" class="form-label">
+                                    <i class="fas fa-hand-paper me-1 text-info"></i>Student's Activeness
+                                </label>
+                                <input type="number" class="form-control" id="class_activeness" name="class_activeness" 
+                                       min="0" max="100" step="0.1" placeholder="0-100" required>
+                                <small class="text-muted">Engagement and participation in class</small>
+                            </div>
+                        </div>
+                        
+                    </div>
+                    <div class="section-divider"></div>
+
+                    <!-- Live Preview -->
+                    <div class="preview-card">
+                        <h6 class="mb-3">
+                            <i class="fas fa-eye me-2"></i>Live Preview
+                        </h6>
+                        <div class="d-flex align-items-center justify-content-between mb-3">
+                            <div>
+                                <div class="score-display" id="previewScore">0.0</div>
+                                <div class="metric-label">Predicted Score</div>
+                            </div>
+                            <div>
+                                <span id="previewCategory" class="category-badge bg-secondary">Not calculated</span>
+                            </div>
+                        </div>
+
+                        <div class="weight-indicator text-center">
+                            Total Weight: <strong id="weightSum">100</strong>%
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Weights & Preview Section -->
+                <div class="col-lg-6">
+                    <div class="form-section">
+                        <h5 class="form-section-title">
+                            <i class="fas fa-balance-scale me-2"></i>Weights Configuration
+                        </h5>
+                        <p class="text-muted mb-3">Adjust the importance of each metric (must total 100%)</p>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="attendance_weight" class="form-label">Attendance Weight (%)</label>
+                                <input type="number" class="form-control" id="attendance_weight" name="attendance_weight" 
+                                       min="0" max="100" step="0.1" value="30" onchange="updateWeightsSum()">
+                                <small class="text-muted">Default: 30%</small>
+                            </div>
+                            <div class="form-group">
+                                <label for="grades_weight" class="form-label">Grades Weight (%)</label>
+                                <input type="number" class="form-control" id="grades_weight" name="grades_weight" 
+                                       min="0" max="100" step="0.1" value="40" onchange="updateWeightsSum()">
+                                <small class="text-muted">Default: 40%</small>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="assignment_weight" class="form-label">Assignment Weight (%)</label>
+                                <input type="number" class="form-control" id="assignment_weight" name="assignment_weight" 
+                                       min="0" max="100" step="0.1" value="20" onchange="updateWeightsSum()">
+                                <small class="text-muted">Default: 20%</small>
+                            </div>
+                            <div class="form-group">
+                                <label for="activeness_weight" class="form-label">Activeness Weight (%)</label>
+                                <input type="number" class="form-control" id="activeness_weight" name="activeness_weight" 
+                                       min="0" max="100" step="0.1" value="10" onchange="updateWeightsSum()">
+                                <small class="text-muted">Default: 10%</small>
+                            </div>
+                        </div>
+
+
+                    </div>
+                </div>
+            </div>
+
+            <!-- Submit Button -->
+            <div class="text-center mt-4">
+                <button type="submit" class="btn btn-predict">
+                    <i class="fas fa-magic me-2"></i>Predict Performance
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Search and Predictions -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4 class="section-title mb-0">
+            <i class="fas fa-list me-2"></i>Recent Predictions
+        </h4>
+        <form method="GET" class="d-flex" style="width: 300px;">
+            <input type="text" class="form-control search-box me-2" name="search" 
+                   value="{{ search_query }}" placeholder="Search students...">
+            <button type="submit" class="btn btn-action">
+                <i class="fas fa-search"></i>
+            </button>
+        </form>
+    </div>
+
+    <!-- Predictions Grid -->
+    {% if predictions %}
+        <div class="predictions-grid">
+            {% for prediction in predictions %}
+            <div class="performance-card">
+                <div class="p-3">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <div>
+                            <h6 class="mb-1 text-primary">{{ prediction.student.name }}</h6>
+                            <small class="text-muted">{{ prediction.student.roll_number }} • {{ prediction.student.department }}</small>
+                        </div>
+                        <div class="score-display">{{ prediction.overall_score|floatformat:1 }}%</div>
+                    </div>
+
+                    <div class="mb-3 text-center">
+                        {% with category_info=prediction.get_category_display_with_color %}
+                        <span class="category-badge bg-{{ category_info.color }}">
+                            {{ category_info.category }}
+                        </span>
+                        {% endwith %}
+                    </div>
+
+                    <!-- Metrics Grid -->
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <div class="metric-display">
+                                <div class="metric-value text-primary">{{ prediction.attendance_score|floatformat:1 }}%</div>
+                                <div class="metric-label">Attendance</div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="metric-display">
+                                <div class="metric-value text-success">{{ prediction.previous_grades|floatformat:1 }}%</div>
+                                <div class="metric-label">Grades</div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="metric-display">
+                                <div class="metric-value text-warning">{{ prediction.assignment_completion|floatformat:1 }}%</div>
+                                <div class="metric-label">Assignments</div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="metric-display">
+                                <div class="metric-value text-info">{{ prediction.class_activeness|floatformat:1 }}%</div>
+                                <div class="metric-label">Activeness</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="text-muted small d-flex justify-content-between">
+                        <span><i class="fas fa-user me-1"></i>{{ prediction.predicted_by.username }}</span>
+                        <span><i class="fas fa-clock me-1"></i>{{ prediction.created_at|date:"M d" }}</span>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="text-center py-5">
+            <div class="performance-card p-5">
+                <i class="fas fa-chart-line fa-3x text-muted mb-3"></i>
+                <h5 class="text-muted">No Predictions Yet</h5>
+                <p class="text-muted mb-0">Create your first performance prediction using the form above.</p>
+            </div>
+        </div>
+    {% endif %}
+
+    <!-- Pagination -->
+    {% if predictions.has_other_pages %}
+    <div class="d-flex justify-content-center mt-4">
+        <nav aria-label="Predictions pagination">
+            <ul class="pagination">
+                {% if predictions.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link btn-action" href="?page={{ predictions.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}">
+                            <i class="fas fa-chevron-left me-1"></i>Previous
+                        </a>
+                    </li>
+                {% endif %}
+                
+                {% for num in predictions.paginator.page_range %}
+                    {% if predictions.number == num %}
+                        <li class="page-item active">
+                            <span class="page-link bg-primary border-primary">{{ num }}</span>
+                        </li>
+                    {% elif num > predictions.number|add:'-2' and num < predictions.number|add:'2' %}
+                        <li class="page-item">
+                            <a class="page-link btn-action" href="?page={{ num }}{% if search_query %}&search={{ search_query }}{% endif %}">{{ num }}</a>
+                        </li>
+                    {% endif %}
+                {% endfor %}
+                
+                {% if predictions.has_next %}
+                    <li class="page-item">
+                        <a class="page-link btn-action" href="?page={{ predictions.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}">
+                            Next<i class="fas fa-chevron-right ms-1"></i>
+                        </a>
+                    </li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Update weights sum on page load
+    updateWeightsSum();
+    
+    // Add event listeners for real-time preview
+    const inputs = ['attendance_score', 'previous_grades', 'assignment_completion', 'class_activeness', 
+                   'attendance_weight', 'grades_weight', 'assignment_weight', 'activeness_weight'];
+    
+    inputs.forEach(inputId => {
+        document.getElementById(inputId).addEventListener('input', updatePreview);
+    });
+});
+
+function updateWeightsSum() {
+    const weights = [
+        parseFloat(document.getElementById('attendance_weight').value) || 0,
+        parseFloat(document.getElementById('grades_weight').value) || 0,
+        parseFloat(document.getElementById('assignment_weight').value) || 0,
+        parseFloat(document.getElementById('activeness_weight').value) || 0
+    ];
+    
+    const sum = weights.reduce((a, b) => a + b, 0);
+    document.getElementById('weightSum').textContent = sum.toFixed(1);
+    
+    // Change styling based on whether sum is 100
+    const weightIndicator = document.querySelector('#weightSum').closest('.weight-indicator');
+    if (weightIndicator) {
+        if (Math.abs(sum - 100) > 0.1) {
+            weightIndicator.style.backgroundColor = '#ed8936';
+            weightIndicator.style.color = 'white';
+            weightIndicator.style.borderColor = '#ed8936';
+        } else {
+            weightIndicator.style.backgroundColor = 'var(--bg-secondary)';
+            weightIndicator.style.color = 'var(--text-primary)';
+            weightIndicator.style.borderColor = 'var(--border-color)';
+        }
+    }
+    
+    updatePreview();
+}
+
+function updatePreview() {
+    const scores = [
+        parseFloat(document.getElementById('attendance_score').value) || 0,
+        parseFloat(document.getElementById('previous_grades').value) || 0,
+        parseFloat(document.getElementById('assignment_completion').value) || 0,
+        parseFloat(document.getElementById('class_activeness').value) || 0
+    ];
+    
+    const weights = [
+        parseFloat(document.getElementById('attendance_weight').value) || 0,
+        parseFloat(document.getElementById('grades_weight').value) || 0,
+        parseFloat(document.getElementById('assignment_weight').value) || 0,
+        parseFloat(document.getElementById('activeness_weight').value) || 0
+    ];
+    
+    const totalWeight = weights.reduce((a, b) => a + b, 0);
+    
+    if (totalWeight > 0) {
+        const weightedSum = scores.reduce((sum, score, index) => sum + (score * weights[index]), 0);
+        const overallScore = weightedSum / totalWeight;
+        
+        document.getElementById('previewScore').textContent = overallScore.toFixed(1);
+        
+        // Update category
+        let category = 'Poor';
+        let categoryClass = 'bg-danger';
+        
+        if (overallScore >= 90) {
+            category = 'Excellent';
+            categoryClass = 'bg-success';
+        } else if (overallScore >= 80) {
+            category = 'Very Good';
+            categoryClass = 'bg-info';
+        } else if (overallScore >= 70) {
+            category = 'Good';
+            categoryClass = 'bg-primary';
+        } else if (overallScore >= 60) {
+            category = 'Satisfactory';
+            categoryClass = 'bg-warning';
+        } else if (overallScore >= 50) {
+            category = 'Needs Improvement';
+            categoryClass = 'bg-warning';
+        }
+        
+        const categoryElement = document.getElementById('previewCategory');
+        categoryElement.textContent = category;
+        categoryElement.className = 'badge ' + categoryClass;
+    }
+}
+
+function loadStudentData() {
+    const studentId = document.getElementById('student_id').value;
+    if (!studentId) {
+        alert('Please select a student first');
+        return;
+    }
+    
+    fetch(`/api/performance/${studentId}/`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('attendance_score').value = data.attendance_score;
+                document.getElementById('previous_grades').value = data.previous_grades;
+                document.getElementById('assignment_completion').value = data.assignment_completion;
+                document.getElementById('class_activeness').value = data.class_activeness;
+                document.getElementById('attendance_weight').value = data.attendance_weight;
+                document.getElementById('grades_weight').value = data.grades_weight;
+                document.getElementById('assignment_weight').value = data.assignment_weight;
+                document.getElementById('activeness_weight').value = data.activeness_weight;
+                
+                updateWeightsSum();
+                updatePreview();
+            }
+        })
+        .catch(error => {
+            console.error('Error loading student data:', error);
+            alert('Error loading student data');
+        });
+}
+
+function resetForm() {
+    document.getElementById('predictionForm').reset();
+    document.getElementById('attendance_weight').value = 30;
+    document.getElementById('grades_weight').value = 40;
+    document.getElementById('assignment_weight').value = 20;
+    document.getElementById('activeness_weight').value = 10;
+    updateWeightsSum();
+    updatePreview();
+}
+</script>
+{% endblock %}

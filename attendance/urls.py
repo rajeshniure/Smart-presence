@@ -16,6 +16,7 @@ urlpatterns = [
     path("teacher/verify/", views.verify_students, name="verify_students"),
     path("teacher/students/", views.students, name="students"),
     path("teacher/attendance/", views.attendance, name="attendance"),
+    path("teacher/performance/", views.performance_prediction, name="performance_prediction"),
     
     # Student dashboard routes
     path("student/dashboard/", views.student_home, name="student_home"),
@@ -39,6 +40,7 @@ urlpatterns = [
     path('api/checkin/', CheckInAPIView.as_view(), name='api_checkin'),
     path('api/checkout/', CheckOutAPIView.as_view(), name='api_checkout'),
     path('api/retrain/', RetrainModelAPIView.as_view(), name='api_retrain'),
+    path('api/performance/<int:student_id>/', views.performance_prediction_api, name='performance_prediction_api'),
 
     path('api/attendance/<int:record_id>/edit/', attendance_edit_api, name='attendance_edit_api'),
 ] 
