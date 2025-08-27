@@ -15,16 +15,16 @@
                         {% csrf_token %}
                         <div class="row">
                             <div class="col-md-6">
-                                <div class="mb-2"><label for="name" class="form-label">Full Name *</label><input type="text" class="form-control" id="name" name="name" required></div>
-                                <div class="mb-2"><label for="roll_number" class="form-label">Roll Number *</label><input type="text" class="form-control" id="roll_number" name="roll_number" required></div>
-                                <div class="mb-2"><label for="email" class="form-label">Email Address *</label><input type="email" class="form-control" id="email" name="email" required></div>
-                                <div class="mb-2"><label for="phone" class="form-label">Phone Number</label><input type="tel" class="form-control" id="phone" name="phone"></div>
-                                <div class="mb-2"><label for="password" class="form-label">Password *</label><input type="password" class="form-control" id="password" name="password" required><div class="form-text">Set a password for student login. This is required for dashboard access.</div></div>
-                                <div class="mb-2"><label for="confirm_password" class="form-label">Confirm Password *</label><input type="password" class="form-control" id="confirm_password" name="confirm_password" required></div>
-                                <div class="mb-2"><label for="department" class="form-label">Department *</label><select class="form-select" id="department" name="department" required><option value="">Select Department</option><option value="Computer Science">Computer Science</option><option value="Information Technology">Information Technology</option><option value="Electronics">Electronics</option><option value="Mechanical">Mechanical</option><option value="Civil">Civil</option><option value="Electrical">Electrical</option></select></div>
+                                <div class="mb-1"><label for="name" class="form-label">Full Name *</label><input type="text" class="form-control" id="name" name="name" required></div>
+                                <div class="mb-1"><label for="roll_number" class="form-label">Roll Number *</label><input type="text" class="form-control" id="roll_number" name="roll_number" required></div>
+                                <div class="mb-1"><label for="email" class="form-label">Email Address *</label><input type="email" class="form-control" id="email" name="email" required></div>
+                                <div class="mb-1"><label for="phone" class="form-label">Phone Number</label><input type="tel" class="form-control" id="phone" name="phone"></div>
+                                <div class="mb-1"><label for="password" class="form-label">Password *</label><input type="password" class="form-control" id="password" name="password" required><div class="form-text">Set a password for student login. This is required for dashboard access.</div></div>
+                                <div class="mb-1"><label for="confirm_password" class="form-label">Confirm Password *</label><input type="password" class="form-control" id="confirm_password" name="confirm_password" required></div>
+                                <div class="mb-1"><label for="department" class="form-label">Department *</label><select class="form-select" id="department" name="department" required><option value="">Select Department</option><option value="Computer Science">Computer Science</option><option value="Information Technology">Information Technology</option><option value="Electronics">Electronics</option><option value="Mechanical">Mechanical</option><option value="Civil">Civil</option><option value="Electrical">Electrical</option></select></div>
                             </div>
                             <div class="col-md-6">
-                                <div class="mb-3"><label for="image" class="form-label">Upload Photo</label><input type="file" class="form-control" id="image" name="image" accept="image/*"><div class="form-text">Upload a clear photo or use webcam below</div></div>
+                                <div class="mb-1"><label for="image" class="form-label">Upload Photo</label><input type="file" class="form-control" id="image" name="image" accept="image/*"><div class="form-text">Upload a clear photo or use webcam below</div></div>
                                 <div class="webcam-section">
                                     <div class="camera-preview-container mb-3">
                                         <div class="camera-wrapper">
@@ -46,7 +46,7 @@
                                 <input type="hidden" id="webcam_image" name="webcam_image">
                             </div>
                         </div>
-                        <div class="row mt-4">
+                        <div class="row mt-1">
                             <div class="col-12">
                                 <hr>
                                 <div class="d-flex justify-content-between">
