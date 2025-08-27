@@ -17,5 +17,46 @@ media/
 # Database file
 db.sqlite3
 
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Large ML artifacts (general)
+*.npy
+*.npz
+*.joblib
+*.pkl
+*.onnx
+*.h5
+*.tflite
+*.ckpt
+*.weights
+*.zip
+*.tar
+*.gz
+*.7z
+
+# Video/media dumps
+*.mp4
+*.avi
+*.mov
+
+# Caches and build
+__pycache__/
+*.py[cod]
+*.cache
+*.log
+*.tmp
+
+# IDE/editor
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
 
 
