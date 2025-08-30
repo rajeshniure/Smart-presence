@@ -1,11 +1,11 @@
 from typing import List, Dict, Optional, Tuple
 import threading
+import torch
 
 
 # Optional fallback to OpenCV if facenet-pytorch is unavailable
 _use_fallback = False
 try:
-    import torch
     from PIL import Image
     import numpy as np
     from facenet_pytorch import MTCNN, InceptionResnetV1
@@ -233,7 +233,6 @@ def detect_and_recognize(image_path: str) -> List[Dict]:
     # If custom trained models are available, use them
     if globals().get('_use_custom_trained') and globals().get('_custom_recog_model') is not None:
         import cv2
-        import torch
         from torchvision.transforms import functional as F
         from attendance.utils.custom_models import preprocess_image_to_tensor
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')

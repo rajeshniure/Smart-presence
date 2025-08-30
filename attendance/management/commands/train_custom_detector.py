@@ -68,6 +68,25 @@ class Command(BaseCommand):
 		model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
 		model = model.to(device)
 
+		# Reduce memory footprint without harming quality
+		try:
+			# Smaller processed image sizes to fit GPU memory while maintaining resolution
+			if hasattr(model, 'transform'):
+				model.transform.min_size = (512,)
+				model.transform.max_size = 640
+			# Reduce RPN proposals (train/test) to lower memory use
+			if hasattr(model, 'rpn'):
+				if hasattr(model.rpn, 'pre_nms_top_n_train'):
+					model.rpn.pre_nms_top_n_train = 1000
+				if hasattr(model.rpn, 'pre_nms_top_n_test'):
+					model.rpn.pre_nms_top_n_test = 600
+				if hasattr(model.rpn, 'post_nms_top_n_train'):
+					model.rpn.post_nms_top_n_train = 1000
+				if hasattr(model.rpn, 'post_nms_top_n_test'):
+					model.rpn.post_nms_top_n_test = 600
+		except Exception:
+			pass
+
 		optimizer = optim.SGD([p for p in model.parameters() if p.requires_grad], lr=lr, momentum=0.9, weight_decay=1e-4)
 
 		train_losses: List[float] = []
@@ -82,17 +101,20 @@ class Command(BaseCommand):
 		train_accuracies: List[float] = []
 		best_f1: float = 0.0
 
+		scaler = torch.cuda.amp.GradScaler(enabled=torch.cuda.is_available())
 		for epoch in range(epochs):
 			model.train()
 			total_loss = 0.0
 			for images, targets in tqdm(train_loader, total=len(train_loader), desc=f"Train {epoch+1}/{epochs}", dynamic_ncols=True, leave=False):
 				images = [img.to(device, non_blocking=True) for img in images]
 				targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
-				loss_dict = model(images, targets)
-				loss = sum(loss for loss in loss_dict.values())
+				with torch.cuda.amp.autocast(enabled=torch.cuda.is_available()):
+					loss_dict = model(images, targets)
+					loss = sum(loss for loss in loss_dict.values())
 				optimizer.zero_grad(set_to_none=True)
-				loss.backward()
-				optimizer.step()
+				scaler.scale(loss).backward()
+				scaler.step(optimizer)
+				scaler.update()
 				total_loss += float(loss.item())
 			train_losses.append(total_loss / max(1, len(train_loader)))
 
@@ -107,8 +129,9 @@ class Command(BaseCommand):
 					images = [img.to(device, non_blocking=True) for img in images]
 					targets_dev = [{k: v.to(device) for k, v in t.items()} for t in targets]
 					# Compute a validation loss by enabling targets (evaluation loss proxy)
-					loss_dict = model(images, targets_dev)
-					val_total_loss += float(sum(loss for loss in loss_dict.values()).item())
+					with torch.cuda.amp.autocast(enabled=torch.cuda.is_available()):
+						loss_dict = model(images, targets_dev)
+						val_total_loss += float(sum(loss for loss in loss_dict.values()).item())
 					# Predictions
 					preds = model(images)
 					for pred, tgt in zip(preds, targets):

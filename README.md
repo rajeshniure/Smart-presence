@@ -56,12 +56,12 @@ Artifacts are saved to `attendance/models/`. Adjust `--dataset-path` if your dat
 
 - Face detection (YOLO-style labels under `datasets/face detection/Images` + `labels`):
   ```bash
-  python manage.py train_custom_detector --dataset-path "datasets/face detection" --epochs 30 --batch-size 4 --learning-rate 5e-4 --val-split 0.2 --iou-threshold 0.5
+  python manage.py train_custom_detector --epochs 25 --batch-size 4 --learning-rate 0.0005 --dataset-path "datasets/face detection"
   ```
 
 - Face recognition (folders per person under `datasets/face recognition/face_recognition_datasets`):
   ```bash
-  python manage.py train_custom_recognition --dataset-path "datasets/face recognition/face_recognition_datasets" --epochs 50 --batch-size 32 --learning-rate 1e-3
+  py manage.py train_custom_recognition --epochs 30 --batch-size 32 --learning-rate 0.001 --dataset-path "datasets/face recognition/face_recognition_datasets"
   ```
 
 - Classical baseline (LBP + SVM):
