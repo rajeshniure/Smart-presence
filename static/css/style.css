@@ -1,4 +1,4 @@
-/* Smart Presence - Dark Theme */
+
 
 :root {
   --primary-color: #3182ce;
@@ -39,6 +39,11 @@ html{
 
 .container{
   max-width: 1100px;
+}
+
+
+.min-vh-62 {
+  min-height: 62vh !important;
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -281,6 +286,70 @@ p, span, div {
 
 }
 
+/* Auth modal enhancements */
+.auth-modal {
+  overflow: hidden;
+}
+
+.auth-illustration {
+  background: linear-gradient(135deg, rgba(66,153,225,0.15) 0%, rgba(102,126,234,0.15) 50%, rgba(118,75,162,0.15) 100%);
+  border-right: 1px solid var(--border-color);
+}
+
+.auth-form .input-group-text {
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  border: 2px solid var(--border-color);
+  border-right: 0;
+}
+
+.auth-form .form-control {
+  border-left: 0;
+}
+
+.auth-form .password-toggle {
+  border: 2px solid var(--border-color);
+  border-left: 0;
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+}
+
+.auth-form .form-control::placeholder {
+  color: rgba(255, 255, 255, 0.7) !important;
+  opacity: 1;
+}
+
+.nav-pills .nav-link {
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+}
+
+.nav-pills .nav-link.active {
+  background: #4299e1;
+  color: #fff;
+}
+
+.site-footer {
+  background: #1f2937; /* solid, distinct from body gradient */
+  color: var(--text-secondary);
+
+}
+
+.site-footer a {
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition: var(--transition);
+}
+
+.site-footer a:hover {
+  color: #ffffff;
+}
+
+.footer-links li {
+  margin-bottom: 0.5rem;
+}
+
+
 .modal-header {
   background: linear-gradient(135deg, #1a365d 0%, #2c5282 100%);
   color: var(--text-primary);
@@ -302,7 +371,6 @@ p, span, div {
   border-top: 1px solid var(--border-color);
 }
 
-/* Alerts */
 .alert {
   border: none;
   border-radius: var(--border-radius);

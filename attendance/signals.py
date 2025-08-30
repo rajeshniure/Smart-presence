@@ -41,25 +41,34 @@ def retrain_facenet_async():
 
 @receiver(post_save, sender=Student)
 def auto_retrain_on_student_save(sender, instance, created, **kwargs):
-    """Automatically retrain FaceNet model when a student is saved"""
+    """Automatically rebuild recognition index when a student is created/verified/image-updated.
+
+    We trigger when:
+    - Student is newly created with an image
+    - Student is verified (is_verified=True) and has an image
+    - Student's image field is updated
+    """
     global _is_retraining
-    
-    # Only retrain if this is a new student or if the image was updated
-    if created or kwargs.get('update_fields') == ['image']:
-        if not _is_retraining:
-            _is_retraining = True
-            
-            # Check if student has an image
-            if instance.image:
-                logger.info(f"New student '{instance.name}' added with image. Triggering auto-retrain...")
-                
-                # Start retraining in a separate thread to avoid blocking
-                thread = threading.Thread(target=retrain_facenet_async)
-                thread.daemon = True
-                thread.start()
-            else:
-                logger.warning(f"Student '{instance.name}' added without image. Skipping auto-retrain.")
-                _is_retraining = False
+
+    should_trigger = False
+
+    if created and instance.image:
+        should_trigger = True
+    else:
+        update_fields = kwargs.get('update_fields')
+        if update_fields is not None:
+            if 'image' in update_fields or 'is_verified' in update_fields:
+                should_trigger = True
+        else:
+            # update_fields not provided; if student is verified and has an image, retrain
+            if instance.is_verified and instance.image:
+                should_trigger = True
+
+    if should_trigger and not _is_retraining:
+        _is_retraining = True
+        thread = threading.Thread(target=retrain_facenet_async)
+        thread.daemon = True
+        thread.start()
 
 @receiver(post_delete, sender=Student)
 def auto_retrain_on_student_delete(sender, instance, **kwargs):

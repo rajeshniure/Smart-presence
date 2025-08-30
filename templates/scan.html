@@ -23,9 +23,9 @@
                             </h5>
                         </div>
                         <div class="card-body text-center">
-                            <div class="position-relative" id="cameraContainer" style="min-height: 480px; display: flex; justify-content: center; align-items: center;">
-                                <video id="videoElement" width="640" height="480" autoplay muted style="border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.2); display: none;"></video>
-                                <canvas id="overlay" width="640" height="480" style="position: absolute; top: 0; left: 0; border-radius: 8px; display: none;"></canvas>
+                            <div class="position-relative" id="cameraContainer" style="min-height: 450px; display: flex; justify-content: center; align-items: center;">
+                                <video id="videoElement" width="600" height="450" autoplay muted style="border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.2); display: none;"></video>
+                                <canvas id="overlay" width="600" height="450" style="position: absolute; top: 0; left: 0; border-radius: 8px; display: none;"></canvas>
                                 <div id="scanCameraPlaceholder" class="scan-camera-placeholder">
                                     <div class="placeholder-content">
                                         <i class="fas fa-video fa-4x mb-3"></i>
@@ -92,8 +92,8 @@
 
 <style>
 .scan-camera-placeholder {
-    width: 640px;
-    height: 480px;
+    width: 600px;
+    height: 450px;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     border-radius: 8px;
     display: flex;
@@ -130,7 +130,7 @@ document.addEventListener('DOMContentLoaded', () => {
 const performCheckIn = () => {
     updateStatus('Requesting camera access for check-in...');
     navigator.mediaDevices.getUserMedia({ 
-        video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' } 
+        video: { width: { ideal: 600 }, height: { ideal: 450 }, facingMode: 'user' } 
     })
     .then(stream => {
         updateStatus('Camera ready for check-in');
@@ -156,7 +156,7 @@ const performCheckIn = () => {
 const performCheckOut = () => {
     updateStatus('Requesting camera access for check-out...');
     navigator.mediaDevices.getUserMedia({ 
-        video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' } 
+        video: { width: { ideal: 600 }, height: { ideal: 450 }, facingMode: 'user' } 
     })
     .then(stream => {
         updateStatus('Camera ready for check-out');

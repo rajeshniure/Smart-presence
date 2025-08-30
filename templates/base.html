@@ -16,6 +16,9 @@
             <a class="navbar-brand" href="{% url 'landing' %}">
                 <i class="fas fa-graduation-cap"></i> Smart Presence
             </a>
+            <button class="navbar-toggler ms-auto" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
                    {% if request.user.is_authenticated and request.user.student_profile %} 
@@ -49,7 +52,7 @@
                         </li>
                     {% endif %}
                 </ul>
-                <div class="d-flex">
+                <div class="d-flex ms-lg-auto mt-3 mt-lg-0">
                     {% if request.user.is_authenticated %}
                         {% if request.user.student_profile %}
                             <div class="dropdown">
@@ -120,31 +123,48 @@
     {% block content %}{% endblock %}
 
     {% block footer %}
-    <footer class="bg-dark text-light py-3 mt-5">
-        <div class="container">
-            <div class="row">
-                <div class="col-md-4">
-                    <h5>Smart Presence</h5>
-                    <p>Intelligent Attendance Management System</p>
+    <footer class="site-footer mt-5">
+        <div class="footer-wave"></div>
+        <div class="container py-4 py-lg-0">
+            <div class="row g-3 align-items-start text-center text-md-start">
+                <div class="d-none d-md-block col-md-4 text-center text-md-start">
+                    <div class="d-flex align-items-center mb-2 justify-content-center justify-content-md-start">
+                        <div class="me-2 fs-4"><i class="fas fa-graduation-cap"></i></div>
+                        <h5 class="mb-0 ">Smart Presence</h5>
+                    </div>
+                    <p class="small mb-3">Intelligent attendance with modern face recognition.</p>
                 </div>
-                <div class="col-md-4">
-                    <ul class="list-unstyled d-flex flex-row gap-5">
-                        <li><a href="{% url 'landing' %}" class="text-light">Home</a></li>
-                        <li><a href="{% url 'landing' %}#features" class="text-light">Features</a></li>
-                        <li><a href="{% url 'scan' %}" class="text-light">Scan</a></li>
+                <div class="col-md-4 text-center text-md-start">
+                    <h6 class="text-uppercase">Quick Links</h6>
+                    <ul class="list-unstyled footer-links">
+                        <li><a href="{% url 'landing' %}"><i class="fas fa-angle-right me-2"></i>Home</a></li>
+                        <li><a href="{% url 'scan' %}"><i class="fas fa-angle-right me-2"></i>Scan</a></li>
+                        {% if not request.user.is_authenticated %}
+                        <li><a href="{% url 'register' %}"><i class="fas fa-angle-right me-2"></i>Register</a></li>
+                        {% endif %}
+                        {% if request.user.is_authenticated and request.user.student_profile %}
+                        <li><a href="{% url 'student_home' %}"><i class="fas fa-angle-right me-2"></i>Student Dashboard</a></li>
+                        {% elif request.user.is_staff or request.user.is_superuser %}
+                        <li><a href="{% url 'home' %}"><i class="fas fa-angle-right me-2"></i>Teacher Dashboard</a></li>
+                        {% endif %}
                     </ul>
                 </div>
-                <div class="col-md-4 text-end">
-                    <h5>Contact Us</h5>
-                    <ul class="list-unstyled">
-                        <li><i class="fas fa-envelope me-2"></i> info@smartpresence.com</li>
-                        <li><i class="fas fa-phone me-2"></i> +1 (123) 456-7890</li>
+                <div class="col-md-4 text-center text-md-start">
+                    <h6 class="text-uppercase">Contact</h6>
+                    <ul class="list-unstyled footer-contact small">
+                        <li class="mb-1"><i class="fas fa-envelope me-2"></i> info@smartpresence.com</li>
+                        <li class="mb-1"><i class="fas fa-phone me-2"></i> +1 (123) 456-7890</li>
+                        <li class="mb-1"><i class="fas fa-location-dot me-2"></i> Prime College, Kathmandu</li>
                     </ul>
                 </div>
             </div>
-            <hr class="mt-0">
-            <div class="text-center">
-                <p class="mb-0">&copy; {% now "Y" %} Smart Presence. All rights reserved.</p>
+            <hr class="my-0">
+            <div class="d-flex flex-column flex-md-row justify-content-center justify-content-md-between align-items-center small py-2 text-center text-md-start">
+                <p class="mb-2 mb-md-0">&copy; {% now "Y" %} Smart Presence. All rights reserved.</p>
+                <div class="d-flex gap-3 justify-content-center justify-content-md-end">
+                    <a href="#">Privacy Policy</a>
+                    <a href="#">Terms</a>
+                </div>
             </div>
         </div>
     </footer>
@@ -153,49 +173,94 @@
     <!-- Login Modal (only for guests) -->
     {% if not request.user.is_authenticated %}
     <div class="modal fade" id="loginModal" tabindex="-1" aria-labelledby="loginModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content auth-modal">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="loginModalLabel">Login</h5>
+                    <h5 class="modal-title d-flex align-items-center gap-2" id="loginModalLabel">
+                        <i class="fas fa-right-to-bracket"></i> Login
+                    </h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <ul class="nav nav-tabs mb-3" id="loginTabs" role="tablist">
-                        <li class="nav-item" role="presentation">
-                            <button class="nav-link active" id="admin-tab" data-bs-toggle="tab" data-bs-target="#admin-login" type="button" role="tab" aria-controls="admin-login" aria-selected="true">Admin Login</button>
-                        </li>
-                        <li class="nav-item" role="presentation">
-                            <button class="nav-link" id="student-tab" data-bs-toggle="tab" data-bs-target="#student-login" type="button" role="tab" aria-controls="student-login" aria-selected="false">Student Login</button>
-                        </li>
-                    </ul>
-                    <div class="tab-content" id="loginTabsContent">
-                        <div class="tab-pane fade show active" id="admin-login" role="tabpanel" aria-labelledby="admin-tab">
-                            <form action="{% url 'admin_login' %}" method="post">
-                                {% csrf_token %}
-                                <div class="mb-3">
-                                    <label for="adminUsername" class="form-label">Username</label>
-                                    <input type="text" class="form-control" id="adminUsername" name="username" required>
-                                </div>
-                                <div class="mb-3">
-                                    <label for="adminPassword" class="form-label">Password</label>
-                                    <input type="password" class="form-control" id="adminPassword" name="password" required>
-                                </div>
-                                <button type="submit" class="btn btn-primary w-100">Login as Admin</button>
-                            </form>
+                    <div class="row g-0">
+                        <div class="col-lg-5 d-none d-lg-flex align-items-center justify-content-center auth-illustration">
+                            <div class="text-center p-4">
+                                <div class="display-6 mb-2"><i class="fas fa-graduation-cap"></i></div>
+                                <h6 class="mb-2">Welcome to Smart Presence</h6>
+                                <p class="mb-0 small">Secure, fast and reliable attendance for your institution.</p>
+                            </div>
                         </div>
-                        <div class="tab-pane fade" id="student-login" role="tabpanel" aria-labelledby="student-tab">
-                            <form action="{% url 'student_login' %}" method="post">
-                                {% csrf_token %}
-                                <div class="mb-3">
-                                    <label for="studentEmail" class="form-label">Email</label>
-                                    <input type="email" class="form-control" id="studentEmail" name="email" required>
+                        <div class="col-lg-7 p-3 p-lg-4">
+                            <ul class="nav nav-pills justify-content-center gap-2 mb-4" id="loginTabs" role="tablist">
+                                <li class="nav-item flex-fill" role="presentation">
+                                    <button class="nav-link active w-100" id="admin-tab" data-bs-toggle="tab" data-bs-target="#admin-login" type="button" role="tab" aria-controls="admin-login" aria-selected="true">
+                                        <i class="fas fa-user-shield me-2"></i> Admin
+                                    </button>
+                                </li>
+                                <li class="nav-item flex-fill" role="presentation">
+                                    <button class="nav-link w-100" id="student-tab" data-bs-toggle="tab" data-bs-target="#student-login" type="button" role="tab" aria-controls="student-login" aria-selected="false">
+                                        <i class="fas fa-user-graduate me-2"></i> Student
+                                    </button>
+                                </li>
+                            </ul>
+                            <div class="tab-content" id="loginTabsContent">
+                                <div class="tab-pane fade show active" id="admin-login" role="tabpanel" aria-labelledby="admin-tab">
+                                    <form action="{% url 'admin_login' %}" method="post" class="auth-form">
+                                        {% csrf_token %}
+                                        <div class="mb-3">
+                                            <label for="adminUsername" class="form-label">Username</label>
+                                            <div class="input-group input-group-lg">
+                                                <span class="input-group-text"><i class="fas fa-user"></i></span>
+                                                <input type="text" class="form-control" id="adminUsername" name="username" placeholder="Enter your username" autocomplete="username" required style="border-left: 0; co">
+                                            </div>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="adminPassword" class="form-label">Password</label>
+                                            <div class="input-group input-group-lg">
+                                                <span class="input-group-text"><i class="fas fa-lock"></i></span>
+                                                <input type="password" class="form-control" id="adminPassword" name="password" placeholder="Enter your password" autocomplete="current-password" required>
+                                                <button class="btn btn-outline-secondary password-toggle" type="button" id="toggleAdminPassword" tabindex="-1"><i class="fas fa-eye"></i></button>
+                                            </div>
+                                            <div class="d-flex justify-content-between mt-2">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" value="1" id="adminRemember" name="remember">
+                                                    <label class="form-check-label" for="adminRemember">Remember me</label>
+                                                </div>
+                                                <a href="#" class="small">Forgot password?</a>
+                                            </div>
+                                        </div>
+                                        <button type="submit" class="btn btn-primary w-100 btn-lg">Login as Admin</button>
+                                    </form>
                                 </div>
-                                <div class="mb-3">
-                                    <label for="studentPassword" class="form-label">Password</label>
-                                    <input type="password" class="form-control" id="studentPassword" name="password" required>
+                                <div class="tab-pane fade" id="student-login" role="tabpanel" aria-labelledby="student-tab">
+                                    <form action="{% url 'student_login' %}" method="post" class="auth-form">
+                                        {% csrf_token %}
+                                        <div class="mb-3">
+                                            <label for="studentEmail" class="form-label">Email</label>
+                                            <div class="input-group input-group-lg">
+                                                <span class="input-group-text"><i class="fas fa-envelope"></i></span>
+                                                <input type="email" class="form-control" id="studentEmail" name="email" placeholder="name@example.com" autocomplete="email" required>
+                                            </div>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="studentPassword" class="form-label">Password</label>
+                                            <div class="input-group input-group-lg">
+                                                <span class="input-group-text"><i class="fas fa-lock"></i></span>
+                                                <input type="password" class="form-control" id="studentPassword" name="password" placeholder="Enter your password" autocomplete="current-password" required>
+                                                <button class="btn btn-outline-secondary password-toggle" type="button" id="toggleStudentPassword" tabindex="-1"><i class="fas fa-eye"></i></button>
+                                            </div>
+                                            <div class="d-flex justify-content-between mt-2">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" value="1" id="studentRemember" name="remember">
+                                                    <label class="form-check-label" for="studentRemember">Remember me</label>
+                                                </div>
+                                                <a href="#" class="small">Forgot password?</a>
+                                            </div>
+                                        </div>
+                                        <button type="submit" class="btn btn-primary w-100 btn-lg">Login as Student</button>
+                                    </form>
                                 </div>
-                                <button type="submit" class="btn btn-primary w-100">Login as Student</button>
-                            </form>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -216,6 +281,29 @@
                         document.getElementById('student-tab').click();
                     }
                 });
+
+                // Password toggle handlers
+                const toggleAdmin = document.getElementById('toggleAdminPassword');
+                const adminPassword = document.getElementById('adminPassword');
+                if (toggleAdmin && adminPassword) {
+                    toggleAdmin.addEventListener('click', function() {
+                        const isPwd = adminPassword.getAttribute('type') === 'password';
+                        adminPassword.setAttribute('type', isPwd ? 'text' : 'password');
+                        this.querySelector('i').classList.toggle('fa-eye');
+                        this.querySelector('i').classList.toggle('fa-eye-slash');
+                    });
+                }
+
+                const toggleStudent = document.getElementById('toggleStudentPassword');
+                const studentPassword = document.getElementById('studentPassword');
+                if (toggleStudent && studentPassword) {
+                    toggleStudent.addEventListener('click', function() {
+                        const isPwd = studentPassword.getAttribute('type') === 'password';
+                        studentPassword.setAttribute('type', isPwd ? 'text' : 'password');
+                        this.querySelector('i').classList.toggle('fa-eye');
+                        this.querySelector('i').classList.toggle('fa-eye-slash');
+                    });
+                }
             }
         });
     </script>
