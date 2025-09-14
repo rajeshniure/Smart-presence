@@ -27,9 +27,7 @@ ENV/
 *.npy
 *.npz
 *.joblib
-*.pkl
 *.onnx
-*.h5
 *.tflite
 *.ckpt
 *.weights

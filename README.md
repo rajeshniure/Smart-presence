@@ -1,11 +1,4 @@
-# SmartPresence - Quick Start (Windows)
 
-A Django-based face recognition attendance system. This guide focuses on Windows only and keeps things simple for collaborators.
-
-## ✅ Prerequisites (Windows)
-- Python 3.8+ (add to PATH during install)
-- Git for Windows
-- Optional: NVIDIA GPU + CUDA for faster training
 
 ## 👥 Collaborate via GitHub
 1. Fork the repository (or get access to the main repo).
@@ -51,54 +44,15 @@ A Django-based face recognition attendance system. This guide focuses on Windows
    ```
 6. Open the app at `http://127.0.0.1:8000/` and the admin at `http://127.0.0.1:8000/admin/`.
 
-## 🧑‍🏫 Train Models (Windows)
-Artifacts are saved to `attendance/models/`. Adjust `--dataset-path` if your data is elsewhere.
 
-- Face detection (YOLO-style labels under `datasets/face detection/Images` + `labels`):
-  ```bash
-  python manage.py train_custom_detector --epochs 25 --batch-size 4 --learning-rate 0.0005 --dataset-path "datasets/face detection"
-  ```
 
-- Face recognition (folders per person under `datasets/face recognition/face_recognition_datasets`):
-  ```bash
-  py manage.py train_custom_recognition --epochs 30 --batch-size 32 --learning-rate 0.001 --dataset-path "datasets/face recognition/face_recognition_datasets"
-  ```
+Simply run the script:
+```bash
 
-- Classical baseline (LBP + SVM):
-  ```bash
-  python manage.py train_lbp_svm --dataset-path "datasets/face recognition/face_recognition_datasets" --test-size 0.2
-  ```
+python face_recognition_plots.py
+python face_detection_plots.py
 
-- Generate training plots from history:
-  ```bash
-  python manage.py train_custom_pipeline
-  ```
+# Run combined evaluation
+python evaluation_plots.py
 
-## 📂 Dataset Layout (expected)
-- Detection (YOLO-style):
-  ```
-  datasets/face detection/
-  ├── Images/
-  │   ├── 0001.jpg
-  │   └── ...
-  └── labels/
-      ├── 0001.txt   # lines like: 0 x_center y_center width height (normalized)
-      └── ...
-  ```
-- Recognition (folders per identity):
-  ```
-  datasets/face recognition/
-  └── face_recognition_datasets/
-      ├── person_a/
-      │   ├── 1.jpg
-      │   └── ...
-      └── person_b/
-          ├── 1.jpg
-          └── ...
-  ```
-
-## ❗ Tips (Windows)
-- If Torch CUDA wheels fail, install CPU-only Torch or ensure CUDA is installed.
-- Always activate the venv before running commands: `.venv\Scripts\activate`.
-- After training, restart the server if models are reloaded at runtime.
-
+```

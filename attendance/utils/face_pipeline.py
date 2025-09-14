@@ -19,13 +19,8 @@ _models_lock = threading.Lock()
 _mtcnn: Optional["MTCNN"] = None
 _resnet: Optional["InceptionResnetV1"] = None
 _device: Optional["torch.device"] = None
-_embedding_index: Optional[Dict[int, Dict[str, object]]] = None  # student_id -> {name, roll, emb}
-_use_custom_trained = False
-_custom_recog_model = None
-_custom_recog_classes: Optional[List[str]] = None
-_custom_recog_arch: Optional[str] = None
-_custom_detect_model = None
-_custom_detect_is_frcnn = False
+_embedding_index: Optional[Dict[int, Dict[str, object]]] = None
+
 
 
 def _load_models_if_needed() -> None:
@@ -95,77 +90,14 @@ def _rebuild_embedding_index() -> None:
 
 def reload_models() -> None:
     """Reload models and rebuild the embedding index (used after retraining)."""
-    global _mtcnn, _resnet, _embedding_index, _use_custom_trained, _custom_recog_model, _custom_recog_classes, _custom_detect_model
+    global _mtcnn, _resnet, _embedding_index
     with _models_lock:
         _mtcnn = None
         _resnet = None
         _embedding_index = None
-        _use_custom_trained = False
-        _custom_recog_model = None
-        _custom_recog_classes = None
-        _custom_detect_model = None
     if not _use_fallback:
         _load_models_if_needed()
     _rebuild_embedding_index()
-    _try_load_custom_models()
-
-
-def _try_load_custom_models() -> None:
-    """Attempt to load custom trained CNN models for detection and recognition."""
-    import os
-    import torch
-    from attendance.utils.custom_models import FaceRecognitionCNN, FaceDetectionCNN
-    from torchvision.models import resnet18
-    from torchvision.models.detection import fasterrcnn_resnet50_fpn
-    from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
-    models_dir = os.path.join(__import__('pathlib').Path(__file__).resolve().parents[1], 'models')
-    rec_path = os.path.join(models_dir, 'best_recognition_model.pth')
-    det_path = os.path.join(models_dir, 'best_detection_model.pth')
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    try:
-        if os.path.exists(rec_path):
-            ckpt = torch.load(rec_path, map_location=device)
-            class_names = ckpt.get('class_names')
-            arch = ckpt.get('arch')
-            if class_names:
-                if arch == 'resnet18':
-                    model = resnet18(weights=None)
-                    in_features = model.fc.in_features
-                    model.fc = __import__('torch').nn.Linear(in_features, len(class_names))
-                    model.load_state_dict(ckpt['state_dict'])
-                    model = model.to(device).eval()
-                    globals()['_custom_recog_arch'] = 'resnet18'
-                else:
-                    model = FaceRecognitionCNN(num_classes=len(class_names)).to(device)
-                    model.load_state_dict(ckpt['state_dict'])
-                    model.eval()
-                    globals()['_custom_recog_arch'] = 'custom_cnn'
-                globals()['_custom_recog_model'] = model
-                globals()['_custom_recog_classes'] = class_names
-                globals()['_use_custom_trained'] = True
-    except Exception:
-        pass
-    try:
-        if os.path.exists(det_path):
-            # Try to load as Faster R-CNN first (new pipeline)
-            try:
-                frcnn = fasterrcnn_resnet50_fpn(weights='DEFAULT')
-                in_features = frcnn.roi_heads.box_predictor.cls_score.in_features
-                frcnn.roi_heads.box_predictor = FastRCNNPredictor(in_features, 2)
-                frcnn.load_state_dict(torch.load(det_path, map_location=device))
-                frcnn.eval().to(device)
-                globals()['_custom_detect_model'] = frcnn
-                globals()['_custom_detect_is_frcnn'] = True
-            except Exception:
-                # Fallback to legacy custom CNN detector
-                model = FaceDetectionCNN().to(device)
-                state = torch.load(det_path, map_location=device)
-                model.load_state_dict(state)
-                model.eval()
-                globals()['_custom_detect_model'] = model
-                globals()['_custom_detect_is_frcnn'] = False
-    except Exception:
-        pass
 
 
 def _ensure_ready() -> None:
@@ -228,65 +160,6 @@ def detect_and_recognize(image_path: str) -> List[Dict]:
         faces = globals()['_fallback_detector'].detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(60, 60))
         for (x, y, w, h) in faces:
             results.append({"name": "Unknown", "box": [int(x), int(y), int(w), int(h)], "confidence": 0.0})
-        return results
-
-    # If custom trained models are available, use them
-    if globals().get('_use_custom_trained') and globals().get('_custom_recog_model') is not None:
-        import cv2
-        from torchvision.transforms import functional as F
-        from attendance.utils.custom_models import preprocess_image_to_tensor
-        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        img_bgr = cv2.imread(image_path)
-        if img_bgr is None:
-            return []
-        img_rgb = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
-
-        # Get boxes from detector
-        boxes: List[List[int]] = []
-        det_model = globals().get('_custom_detect_model')
-        if det_model is not None and globals().get('_custom_detect_is_frcnn'):
-            img_tensor = F.to_tensor(img_rgb).to(device)
-            with torch.no_grad():
-                pred = det_model([img_tensor])[0]
-            pboxes = pred.get('boxes')
-            pscores = pred.get('scores')
-            if pboxes is not None and pscores is not None:
-                keep = (pscores.detach().cpu().numpy() >= 0.5)
-                for b, k in zip(pboxes.detach().cpu().numpy(), keep):
-                    if not k:
-                        continue
-                    x1, y1, x2, y2 = [int(v) for v in b]
-                    boxes.append([x1, y1, max(1, x2 - x1), max(1, y2 - y1)])
-        elif det_model is not None:
-            # Legacy sliding window on custom CNN
-            from attendance.utils.custom_models import sliding_window_detect
-            boxes = sliding_window_detect(img_rgb, det_model, device)
-        else:
-            # Fallback to MTCNN for boxes
-            from PIL import Image
-            img_pil = Image.fromarray(img_rgb)
-            boxes_mtcnn, _ = _mtcnn.detect(img_pil)
-            if boxes_mtcnn is not None:
-                for b in boxes_mtcnn:
-                    x1, y1, x2, y2 = [int(v) for v in b]
-                    boxes.append([x1, y1, int(x2 - x1), int(y2 - y1)])
-
-        # Recognize each box using custom recognition CNN
-        recog_model = globals()['_custom_recog_model']
-        class_names = globals()['_custom_recog_classes'] or []
-        for (x, y, w, h) in boxes:
-            x2, y2 = x + w, y + h
-            crop = img_rgb[max(0, y):max(0, y2), max(0, x):max(0, x2)]
-            if crop.size == 0:
-                continue
-            tensor = preprocess_image_to_tensor(crop).unsqueeze(0).to(device)
-            with torch.no_grad():
-                logits = recog_model(tensor)
-                probs = torch.softmax(logits, dim=1).cpu().numpy()[0]
-                idx = int(np.argmax(probs))
-                name = class_names[idx] if 0 <= idx < len(class_names) else 'Unknown'
-                conf = float(probs[idx])
-            results.append({"name": name, "box": [int(x), int(y), int(w), int(h)], "confidence": conf})
         return results
 
     # facenet-pytorch path
