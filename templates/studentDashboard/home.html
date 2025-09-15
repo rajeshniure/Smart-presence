@@ -4,6 +4,10 @@
 {% block title %}Home - Student Dashboard{% endblock %}
 
 {% block content %}
+<style>
+/* Scoped style for student progress bar */
+.progress-bar-student { width: calc(var(--progress, 0) * 1%); }
+</style>
 <div class="container py-5">
 <div class="row">
     <div class="col-12 my-4">
@@ -14,7 +18,7 @@
             <div class="card-body">
                 <div class="row">
                     <div class="col-md-4 text-center mb-4 mb-md-0">
-                        {% if student.image %}
+                        {% if student.image and student.image.name %}
                             <div class="mx-auto" style="width: 150px; height: 150px; border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center;">
                                 <img src="{{ student.image.url }}" alt="{{ student.name }}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">
                             </div>
@@ -129,7 +133,7 @@
                 <div class="text-center mt-3">
                     <p>Attendance Rate: <strong>{{ attendance_stats.rate }}%</strong></p>
                     <div class="progress">
-                        <div class="progress-bar bg-success" role="progressbar" style="width: {{ attendance_stats.rate }}%" aria-valuenow="{{ attendance_stats.rate }}" aria-valuemin="0" aria-valuemax="100"></div>
+                        <div class="progress-bar progress-bar-student bg-success" role="progressbar" style="--progress: {{ attendance_stats.rate|default:0 }}" aria-valuenow="{{ attendance_stats.rate }}" aria-valuemin="0" aria-valuemax="100"></div>
                     </div>
                 </div>
                 

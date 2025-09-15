@@ -27,12 +27,18 @@
                                     {% for student in unverified_students %}
                                     <tr>
                                         <td>{{ student.name }}</td>
-                                        <td>{{ student.roll_number }}</td>
+                                        <td>
+                                            {% if student.roll_number %}
+                                                {{ student.roll_number }}
+                                            {% else %}
+                                                <input type="text" name="roll_number" class="form-control form-control-sm" form="verify-form-{{ student.id }}" placeholder="Enter roll no" style="background-color: #ffffff; color: #000000;">
+                                            {% endif %}
+                                        </td>
                                         <td>{{ student.email }}</td>
                                         <td>{{ student.department }}</td>
                                         <td>{{ student.created_at|date:"M d, Y" }}</td>
                                         <td>
-                                            <form method="post" style="display:inline;">
+                                            <form id="verify-form-{{ student.id }}" method="post" style="display:inline;">
                                                 {% csrf_token %}
                                                 <input type="hidden" name="student_id" value="{{ student.id }}">
                                                 <button type="submit" name="action" value="verify" class="btn btn-success btn-sm">

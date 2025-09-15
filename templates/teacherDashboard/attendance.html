@@ -69,14 +69,14 @@
                     <tbody>
                         {% for record in attendance_records %}
                         <tr>
-                            <td>{% if record.student.image %}<img src="{{ record.student.image.url }}" alt="{{ record.student.name }}" class="rounded-circle" width="40" height="40" style="object-fit:cover;">{% else %}<div class="bg-secondary rounded-circle d-flex align-items-center justify-content-center text-white" style="width:40px;height:40px;"><i class="fas fa-user"></i></div>{% endif %}</td>
+                            <td>{% if record.student.image and record.student.image.name %}<img src="{{ record.student.image.url }}" alt="{{ record.student.name }}" class="rounded-circle" width="40" height="40" style="object-fit:cover;">{% else %}<div class="bg-secondary rounded-circle d-flex align-items-center justify-content-center text-white" style="width:40px;height:40px;"><i class="fas fa-user"></i></div>{% endif %}</td>
                             <td>{{ record.student.name }}</td>
                             <td>{{ record.student.roll_number }}</td>
                             <td>{{ record.student.department }}</td>
                             <td>{% if record.check_in_time %}<span class="badge bg-info">{{ record.check_in_time|time:"H:i" }}</span>{% else %}<span class="text-muted">--:--</span>{% endif %}</td>
                             <td>{% if record.check_out_time %}<span class="badge bg-secondary">{{ record.check_out_time|time:"H:i" }}</span>{% else %}<span class="text-muted">--:--</span>{% endif %}</td>
                             <td>{% if record.status == 'present' %}<span class="badge bg-success"><i class="fas fa-check"></i> Present</span>{% elif record.status == 'late' %}<span class="badge bg-warning"><i class="fas fa-clock"></i> Late</span>{% else %}<span class="badge bg-danger"><i class="fas fa-times"></i> Absent</span>{% endif %}</td>
-                            <td><button type="button" class="btn btn-warning btn-sm" onclick="editRecord({{ record.id }}, this)" title="Edit Record"><i class="fas fa-edit"></i></button></td>
+                            <td><button type="button" class="btn btn-warning btn-sm" onclick="editRecord('{{ record.id }}', this)" title="Edit Record"><i class="fas fa-edit"></i></button></td>
                         </tr>
                         {% endfor %}
                     </tbody>

@@ -63,18 +63,18 @@
                                         </button>
                                         <ul class="dropdown-menu">
                                             <li>
-                                                <a class="dropdown-item" href="#" onclick="viewStudent({{ student.id }})">
+                                                <a class="dropdown-item" href="#" onclick="viewStudent('{{ student.id }}')">
                                                     <i class="fas fa-eye"></i> Details
                                                 </a>
                                             </li>
                                             <li>
-                                                <a class="dropdown-item" href="#" onclick="editStudent({{ student.id }})">
+                                                <a class="dropdown-item" href="#" onclick="editStudent('{{ student.id }}')">
                                                     <i class="fas fa-edit"></i> Edit
                                                 </a>
                                             </li>
                                             <li><hr class="dropdown-divider"></li>
                                             <li>
-                                                <a class="dropdown-item text-danger" href="#" onclick="deleteStudent({{ student.id }}, '{{ student.name }}')">
+                                                <a class="dropdown-item text-danger" href="#" onclick="deleteStudent('{{ student.id }}', '{{ student.name }}')">
                                                     <i class="fas fa-trash"></i> Delete
                                                 </a>
                                             </li>
@@ -83,7 +83,7 @@
                                 </div>
                                 <div class="card-body text-center">
                                     <div class="mb-3">
-                                        {% if student.image %}
+                                        {% if student.image and student.image.name %}
                                             <img src="{{ student.image.url }}" alt="{{ student.name }}" class="rounded-circle student-photo" width="80" height="80">
                                         {% else %}
                                             <div class="bg-secondary rounded-circle d-flex align-items-center justify-content-center text-white" style="width:80px;height:80px;margin:0 auto;">

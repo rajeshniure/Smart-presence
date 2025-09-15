@@ -14,7 +14,7 @@
             <div class="card-body">
                 <div class="row">
                     <div class="col-md-4 text-center mb-4 mb-md-0">
-                        {% if student.image %}
+                        {% if student.image and student.image.name %}
                         <div class="mx-auto" style="width: 150px; height: 150px; border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center;">
                             <img src="{{ student.image.url }}" alt="{{ student.name }}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">
                         </div>                        {% else %}
@@ -236,7 +236,7 @@
         capturedImage = null;
     });
 
-    document.querySelector('form[action="{% url 'student_profile_update' %}"]').addEventListener('submit', function(e) {
+    document.querySelector("form[action='{% url 'student_profile_update' %}']").addEventListener('submit', function(e) {
         const password = document.getElementById('password').value;
         const confirmPassword = document.getElementById('confirm_password').value;
         if (password && password !== confirmPassword) {

@@ -16,7 +16,7 @@
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="mb-1"><label for="name" class="form-label">Full Name *</label><input type="text" class="form-control" id="name" name="name" required></div>
-                                <div class="mb-1"><label for="roll_number" class="form-label">Roll Number *</label><input type="text" class="form-control" id="roll_number" name="roll_number" required></div>
+                                
                                 <div class="mb-1"><label for="email" class="form-label">Email Address *</label><input type="email" class="form-control" id="email" name="email" required></div>
                                 <div class="mb-1"><label for="phone" class="form-label">Phone Number</label><input type="tel" class="form-control" id="phone" name="phone"></div>
                                 <div class="mb-1"><label for="password" class="form-label">Password *</label><input type="password" class="form-control" id="password" name="password" required><div class="form-text">Set a password for student login. This is required for dashboard access.</div></div>
@@ -142,11 +142,7 @@ const fields = {
             return true;
         }
     },
-    roll_number: {
-        el: document.getElementById('roll_number'),
-        error: null,
-        validate: v => /^[a-zA-Z0-9]+$/.test(v) || 'Roll Number must be alphanumeric.'
-    },
+    
     email: {
         el: document.getElementById('email'),
         error: null,

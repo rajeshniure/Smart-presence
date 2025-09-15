@@ -139,7 +139,6 @@ def register(request):
         try:
             # Extract form data
             name = request.POST.get('name')
-            roll_number = request.POST.get('roll_number')
             email = request.POST.get('email')
             phone = request.POST.get('phone', '')
             department = request.POST.get('department')
@@ -160,7 +159,8 @@ def register(request):
             webcam_image = request.POST.get('webcam_image')
             
             # Process image
-            student_image = get_or_create_student_image(image_file, webcam_image, roll_number)
+            filename_prefix = (email.split('@')[0] if email and '@' in email else 'student')
+            student_image = get_or_create_student_image(image_file, webcam_image, filename_prefix)
             if not student_image:
                 messages.error(request, 'Please provide an image either by upload or webcam capture.')
                 return render(request, "register.html")
@@ -187,7 +187,6 @@ def register(request):
             # Create student instance
             student = Student(
                 name=name,
-                roll_number=roll_number,
                 email=email,
                 phone=phone,
                 department=department,
@@ -196,7 +195,7 @@ def register(request):
             student.image = student_image
             
             # Create user account
-            username = roll_number  # Use roll number as username
+            username = email  # Use email as username; roll number will be set on verification
             user = User.objects.create_user(username=username, email=email, password=password)
             user.first_name = name.split()[0] if ' ' in name else name
             user.last_name = name.split(' ', 1)[1] if ' ' in name else ''
@@ -209,9 +208,7 @@ def register(request):
             return redirect('register')
             
         except IntegrityError as e:
-            if 'roll_number' in str(e):
-                messages.error(request, 'A student with this roll number already exists.')
-            elif 'email' in str(e):
+            if 'email' in str(e):
                 messages.error(request, 'A student with this email already exists.')
             else:
                 messages.error(request, f'An error occurred during registration: {str(e)}')
@@ -889,6 +886,21 @@ def verify_students(request):
         action = request.POST.get('action')
         student = get_object_or_404(Student, id=student_id)
         if action == 'verify':
+            roll_number = request.POST.get('roll_number', '').strip()
+            # Require roll number if not already set
+            if not student.roll_number and not roll_number:
+                messages.error(request, f"Please provide a roll number for {student.name} before verifying.")
+                return redirect('verify_students')
+            # If provided, validate uniqueness and assign
+            if roll_number and roll_number != student.roll_number:
+                if Student.objects.filter(roll_number=roll_number).exclude(id=student.id).exists():
+                    messages.error(request, f"Roll number {roll_number} is already in use.")
+                    return redirect('verify_students')
+                student.roll_number = roll_number
+                # Optionally align auth username with roll number
+                if student.user:
+                    student.user.username = roll_number
+                    student.user.save()
             student.is_verified = True
             student.save()
             messages.success(request, f"Student {student.name} has been verified.")
