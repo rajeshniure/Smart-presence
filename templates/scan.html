@@ -113,6 +113,16 @@ let videoStream = null;
 let videoElement, overlayCanvas, startCameraBtn, stopCameraBtn, checkoutBtn;
 let scanCameraPlaceholder, recognitionResult, noRecognition;
 
+// Helper: draw text visually normal (not mirrored) on a mirrored canvas element
+function drawTextNormal(ctx, text, x, y) {
+    if (!overlayCanvas) return;
+    ctx.save();
+    ctx.setTransform(-1, 0, 0, 1, overlayCanvas.width, 0);
+    ctx.fillText(text, overlayCanvas.width - x, y);
+    ctx.restore();
+}
+
+
 document.addEventListener('DOMContentLoaded', () => {
     videoElement = document.getElementById('videoElement');
     overlayCanvas = document.getElementById('overlay');
@@ -207,7 +217,7 @@ const captureAndProcessCheckIn = () => {
         ctx.fillRect(0, 0, overlayCanvas.width, overlayCanvas.height);
         ctx.fillStyle = 'rgba(0, 255, 0, 0.8)';
         ctx.font = 'bold 16px Arial';
-        ctx.fillText('CHECKING IN...', overlayCanvas.width - 140, 30);
+        drawTextNormal(ctx, 'CHECKING IN...', overlayCanvas.width - 140, 30);
     } catch (error) {
         console.error('Error drawing to canvas:', error);
         overlayCanvas.style.display = 'none';
@@ -238,10 +248,10 @@ const captureAndProcessCheckIn = () => {
                 ctx.fillStyle = 'rgba(0, 255, 0, 0.9)';
                 ctx.font = 'bold 14px Arial';
                 let statusText = face.attendance_status === 'already_checked_in' ? 'Already Checked In' : 'Check-in Successful';
-                ctx.fillText(`${face.name} - ${statusText}`, overlayCanvas.width - 200, 60);
-                if (face.roll_number) ctx.fillText(`Roll: ${face.roll_number}`, overlayCanvas.width - 200, 80);
-                if (face.department) ctx.fillText(`Dept: ${face.department}`, overlayCanvas.width - 200, 100);
-                if (face.attendance_details && face.attendance_details.check_in_time) ctx.fillText(`Time: ${face.attendance_details.check_in_time}`, overlayCanvas.width - 200, 120);
+                drawTextNormal(ctx, `${face.name} - ${statusText}`, overlayCanvas.width - 200, 60);
+                if (face.roll_number) drawTextNormal(ctx, `Roll: ${face.roll_number}`, overlayCanvas.width - 200, 80);
+                if (face.department) drawTextNormal(ctx, `Dept: ${face.department}`, overlayCanvas.width - 200, 100);
+                if (face.attendance_details && face.attendance_details.check_in_time) drawTextNormal(ctx, `Time: ${face.attendance_details.check_in_time}`, overlayCanvas.width - 200, 120);
                 let statusMsg = `Check-in: ${face.name}`;
                 if (face.roll_number) statusMsg += ` (Roll: ${face.roll_number})`;
                 if (face.department) statusMsg += ` - ${face.department}`;
@@ -263,7 +273,7 @@ const captureAndProcessCheckIn = () => {
             ctx.fillRect(0, 0, overlayCanvas.width, overlayCanvas.height);
             ctx.fillStyle = 'white';
             ctx.font = 'bold 20px Arial';
-            ctx.fillText('CHECK-IN ERROR', overlayCanvas.width/2 - 80, overlayCanvas.height/2);
+            drawTextNormal(ctx, 'CHECK-IN ERROR', overlayCanvas.width/2 - 80, overlayCanvas.height/2);
             setTimeout(() => {
                 overlayCanvas.style.display = 'none';
                 stopCamera();
@@ -287,7 +297,7 @@ const captureAndProcessCheckOut = () => {
         ctx.fillRect(0, 0, overlayCanvas.width, overlayCanvas.height);
         ctx.fillStyle = 'rgba(255, 165, 0, 0.8)';
         ctx.font = 'bold 16px Arial';
-        ctx.fillText('CHECKING OUT...', overlayCanvas.width - 140, 30);
+        drawTextNormal(ctx, 'CHECKING OUT...', overlayCanvas.width - 140, 30);
     } catch (error) {
         console.error('Error drawing to canvas:', error);
         overlayCanvas.style.display = 'none';
@@ -320,10 +330,10 @@ const captureAndProcessCheckOut = () => {
                 let statusText = 'Check-out Successful';
                 if (face.attendance_status === 'already_checked_out') statusText = 'Already Checked Out';
                 else if (face.attendance_status === 'no_check_in') statusText = 'No Check-in Found';
-                ctx.fillText(`${face.name} - ${statusText}`, overlayCanvas.width - 200, 60);
-                if (face.roll_number) ctx.fillText(`Roll: ${face.roll_number}`, overlayCanvas.width - 200, 80);
-                if (face.department) ctx.fillText(`Dept: ${face.department}`, overlayCanvas.width - 200, 100);
-                if (face.attendance_details && face.attendance_details.check_out_time) ctx.fillText(`Time: ${face.attendance_details.check_out_time}`, overlayCanvas.width - 200, 120);
+                drawTextNormal(ctx, `${face.name} - ${statusText}`, overlayCanvas.width - 200, 60);
+                if (face.roll_number) drawTextNormal(ctx, `Roll: ${face.roll_number}`, overlayCanvas.width - 200, 80);
+                if (face.department) drawTextNormal(ctx, `Dept: ${face.department}`, overlayCanvas.width - 200, 100);
+                if (face.attendance_details && face.attendance_details.check_out_time) drawTextNormal(ctx, `Time: ${face.attendance_details.check_out_time}`, overlayCanvas.width - 200, 120);
                 let statusMsg = `Check-out: ${face.name}`;
                 if (face.roll_number) statusMsg += ` (Roll: ${face.roll_number})`;
                 if (face.department) statusMsg += ` - ${face.department}`;
@@ -346,7 +356,7 @@ const captureAndProcessCheckOut = () => {
             ctx.fillRect(0, 0, overlayCanvas.width, overlayCanvas.height);
             ctx.fillStyle = 'white';
             ctx.font = 'bold 20px Arial';
-            ctx.fillText('CHECK-OUT ERROR', overlayCanvas.width/2 - 80, overlayCanvas.height/2);
+            drawTextNormal(ctx, 'CHECK-OUT ERROR', overlayCanvas.width/2 - 80, overlayCanvas.height/2);
             setTimeout(() => {
                 overlayCanvas.style.display = 'none';
                 stopCamera();

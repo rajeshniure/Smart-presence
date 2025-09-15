@@ -48,6 +48,41 @@
         </div>
     </div>
 
+    <!-- Attendance Time Thresholds -->
+    <div class="row g-4 mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex align-items-center justify-content-between">
+                    <h5 class="mb-0"><i class="fas fa-sliders-h"></i> Attendance Time Thresholds</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" class="row g-3">
+                        {% csrf_token %}
+                        <input type="hidden" name="form_type" value="thresholds">
+                        <div class="col-md-4">
+                            <label class="form-label">On-time up to</label>
+                            <input type="time" class="form-control" name="on_time_threshold" value="{{ settings_on_time_threshold }}" required>
+                            <small class="text-muted">Check-in at or before this time is Present.</small>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Late up to</label>
+                            <input type="time" class="form-control" name="late_threshold" value="{{ settings_late_threshold }}" required>
+                            <small class="text-muted">After on-time and at or before this time is Late.</small>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Absent after</label>
+                            <input type="time" class="form-control" name="absent_threshold" value="{{ settings_absent_threshold }}" required>
+                            <small class="text-muted">After this time is Absent.</small>
+                        </div>
+                        <div class="col-12">
+                            <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Save Thresholds</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Quick Actions -->
     <div class="row g-4 mt-5">
         <div class="col-md-6">

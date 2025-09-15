@@ -115,6 +115,30 @@ def logout_view(request):
 @user_passes_test(is_admin)
 def home(request):
     # Calculate real statistics from database
+    from .models import AttendanceSettings
+    # Handle AttendanceSettings updates from home page
+    if request.method == 'POST' and request.POST.get('form_type') == 'thresholds':
+        try:
+            from django.utils.dateparse import parse_time
+            on_time_threshold = parse_time(request.POST.get('on_time_threshold') or '')
+            late_threshold = parse_time(request.POST.get('late_threshold') or '')
+            absent_threshold = parse_time(request.POST.get('absent_threshold') or '')
+            if not (on_time_threshold and late_threshold and absent_threshold):
+                messages.error(request, 'All three thresholds are required.')
+                return redirect('home')
+            if not (on_time_threshold <= late_threshold <= absent_threshold):
+                messages.error(request, 'Invalid order: On-time must be ≤ Late ≤ Absent.')
+                return redirect('home')
+            settings_obj = AttendanceSettings.get_settings()
+            settings_obj.on_time_threshold = on_time_threshold
+            settings_obj.late_threshold = late_threshold
+            settings_obj.absent_threshold = absent_threshold
+            settings_obj.save()
+            messages.success(request, 'Attendance thresholds updated successfully.')
+            return redirect('home')
+        except Exception as e:
+            messages.error(request, f'Failed to update thresholds: {str(e)}')
+            return redirect('home')
     total_students = Student.objects.count()
     today = date.today()
     
@@ -124,12 +148,16 @@ def home(request):
     late_today = today_attendance.filter(status='late').count()
     absent_today = total_students - present_today - late_today
     
+    settings_obj = AttendanceSettings.get_settings()
     context = {
         'total_students': total_students,
         'present_today': present_today,
         'late_today': late_today,
         'absent_today': absent_today,
         'unverified_count': get_unverified_count(request),
+        'settings_on_time_threshold': settings_obj.on_time_threshold.strftime('%H:%M') if settings_obj.on_time_threshold else '',
+        'settings_late_threshold': settings_obj.late_threshold.strftime('%H:%M') if settings_obj.late_threshold else '',
+        'settings_absent_threshold': settings_obj.absent_threshold.strftime('%H:%M') if settings_obj.absent_threshold else '',
     }
     return render(request, "teacherDashboard/home.html", context)
 
@@ -272,6 +300,32 @@ def students(request):
 @login_required
 @user_passes_test(is_admin)
 def attendance(request):
+    # Handle AttendanceSettings updates
+    from .models import AttendanceSettings
+    if request.method == 'POST' and request.POST.get('form_type') == 'thresholds':
+        try:
+            from django.utils.dateparse import parse_time
+            on_time_threshold = parse_time(request.POST.get('on_time_threshold') or '')
+            late_threshold = parse_time(request.POST.get('late_threshold') or '')
+            absent_threshold = parse_time(request.POST.get('absent_threshold') or '')
+            if not (on_time_threshold and late_threshold and absent_threshold):
+                messages.error(request, 'All three thresholds are required.')
+                return redirect('attendance')
+            # Validate ordering: on_time <= late <= absent
+            if not (on_time_threshold <= late_threshold <= absent_threshold):
+                messages.error(request, 'Invalid order: On-time must be ≤ Late ≤ Absent.')
+                return redirect('attendance')
+            settings_obj = AttendanceSettings.get_settings()
+            settings_obj.on_time_threshold = on_time_threshold
+            settings_obj.late_threshold = late_threshold
+            settings_obj.absent_threshold = absent_threshold
+            settings_obj.save()
+            messages.success(request, 'Attendance thresholds updated successfully.')
+            return redirect('attendance')
+        except Exception as e:
+            messages.error(request, f'Failed to update thresholds: {str(e)}')
+            return redirect('attendance')
+
     # Get attendance records with date filtering
     selected_date = request.GET.get('date', date.today().strftime('%Y-%m-%d'))
     
@@ -288,6 +342,9 @@ def attendance(request):
     late_count = attendance_records.filter(status='late').count()
     absent_count = total_students - present_count - late_count
     
+    # Load current settings to display in UI
+    settings_obj = AttendanceSettings.get_settings()
+
     context = {
         'attendance_records': attendance_records,
         'selected_date': selected_date,
@@ -296,6 +353,9 @@ def attendance(request):
         'absent_count': absent_count,
         'total_students': total_students,
         'unverified_count': get_unverified_count(request),
+        'settings_on_time_threshold': settings_obj.on_time_threshold.strftime('%H:%M') if settings_obj.on_time_threshold else '',
+        'settings_late_threshold': settings_obj.late_threshold.strftime('%H:%M') if settings_obj.late_threshold else '',
+        'settings_absent_threshold': settings_obj.absent_threshold.strftime('%H:%M') if settings_obj.absent_threshold else '',
     }
     return render(request, "teacherDashboard/attendance.html", context)
 
@@ -571,6 +631,60 @@ def attendance_emotions_api(request, record_id):
     
     return JsonResponse(data)
 
+
+@login_required
+@user_passes_test(is_admin)
+def attendance_export_api(request):
+    """Export attendance records for a given date as CSV.
+    Query params: ?date=YYYY-MM-DD (defaults to today)
+    """
+    try:
+        export_date_str = request.GET.get('date')
+        if export_date_str:
+            try:
+                export_date = datetime.strptime(export_date_str, '%Y-%m-%d').date()
+            except ValueError:
+                return JsonResponse({'success': False, 'message': 'Invalid date format. Use YYYY-MM-DD.'}, status=400)
+        else:
+            export_date = date.today()
+
+        records = Attendance.objects.filter(date=export_date).select_related('student')
+
+        import csv
+        from io import StringIO
+        csv_buffer = StringIO()
+        writer = csv.writer(csv_buffer)
+
+        # Header
+        writer.writerow([
+            'Date',
+            'Student Name',
+            'Roll Number',
+            'Department',
+            'Check-in Time',
+            'Check-out Time',
+            'Status',
+        ])
+
+        # Rows
+        for r in records:
+            writer.writerow([
+                export_date.strftime('%Y-%m-%d'),
+                getattr(r.student, 'name', ''),
+                getattr(r.student, 'roll_number', ''),
+                getattr(r.student, 'department', ''),
+                r.check_in_time.strftime('%H:%M') if r.check_in_time else '',
+                r.check_out_time.strftime('%H:%M') if r.check_out_time else '',
+                r.status,
+            ])
+
+        from django.http import HttpResponse
+        response = HttpResponse(csv_buffer.getvalue(), content_type='text/csv')
+        response['Content-Disposition'] = f'attachment; filename="attendance_{export_date.strftime('%Y%m%d')}.csv"'
+        return response
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': f'Failed to export: {str(e)}'}, status=500)
+
 @csrf_exempt
 def attendance_edit_api(request, record_id):
     from django.utils.dateparse import parse_time
@@ -706,7 +820,6 @@ class ScanAPIView(APIView):
             return Response({'results': response_data}, status=http_status.HTTP_200_OK)
         except Exception:
             return Response({'error': 'Internal server error.'}, status=http_status.HTTP_500_INTERNAL_SERVER_ERROR)
-
 
 
 

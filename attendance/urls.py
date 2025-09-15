@@ -1,6 +1,6 @@
 from django.urls import path
 from . import views
-from .views import ScanAPIView, CheckInAPIView, CheckOutAPIView, RetrainModelAPIView, attendance_edit_api
+from .views import ScanAPIView, CheckInAPIView, CheckOutAPIView, RetrainModelAPIView, attendance_edit_api, attendance_export_api
 
 urlpatterns = [
     # Landing page
@@ -41,6 +41,9 @@ urlpatterns = [
     path('api/checkout/', CheckOutAPIView.as_view(), name='api_checkout'),
     path('api/retrain/', RetrainModelAPIView.as_view(), name='api_retrain'),
     path('api/performance/<int:student_id>/', views.performance_prediction_api, name='performance_prediction_api'),
+
+    # Attendance export
+    path('api/attendance/export/', attendance_export_api, name='attendance_export_api'),
 
     path('api/attendance/<int:record_id>/edit/', attendance_edit_api, name='attendance_edit_api'),
 ] 
