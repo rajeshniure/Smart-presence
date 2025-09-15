@@ -200,77 +200,24 @@
             // Update modal title
             document.getElementById('detailsModalLabel').textContent = `Attendance Details - ${recordDate}`;
             
-            // Fetch attendance details
-            fetch(`/api/attendance/${recordId}/emotions/`)
-                .then(response => response.json())
-                .then(data => {
-                    let modalContent = `
-                        <div class="mb-4">
-                            <h6>Status Information</h6>
-                            <table class="table table-borderless">
-                                <tr>
-                                    <th>Date:</th>
-                                    <td>${data.date}</td>
-                                </tr>
-                                <tr>
-                                    <th>Status:</th>
-                                    <td id="attendanceStatus"></td>
-                                </tr>
-                            </table>
-                        </div>
-                    `;
-                    
-                    if (data.emotions && data.emotions.length > 0) {
-                        modalContent += `
-                            <div>
-                                <h6>Emotion Analysis</h6>
-                                <table class="table table-sm">
-                                    <thead>
-                                        <tr>
-                                            <th>Time</th>
-                                            <th>Emotion</th>
-                                            <th>Confidence</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                        `;
-                        
-                        data.emotions.forEach(emotion => {
-                            const timestamp = new Date(emotion.timestamp).toLocaleTimeString();
-                            modalContent += `
-                                <tr>
-                                    <td>${timestamp}</td>
-                                    <td>${emotion.emotion}</td>
-                                    <td>${(emotion.confidence * 100).toFixed(2)}%</td>
-                                </tr>
-                            `;
-                        });
-                        
-                        modalContent += `
-                                    </tbody>
-                                </table>
-                            </div>
-                        `;
-                    } else {
-                        modalContent += `
-                            <div class="text-center py-3">
-                                <i class="fas fa-face-meh fa-2x text-muted mb-2"></i>
-                                <p class="text-muted mb-0">No emotion data available for this attendance record.</p>
-                            </div>
-                        `;
-                    }
-                    
-                    document.getElementById('detailsModalBody').innerHTML = modalContent;
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    document.getElementById('detailsModalBody').innerHTML = `
-                        <div class="alert alert-danger">
-                            <i class="fas fa-exclamation-circle me-2"></i>
-                            Error loading attendance details.
-                        </div>
-                    `;
-                });
+            // Show basic attendance details
+            let modalContent = `
+                <div class="mb-4">
+                    <h6>Attendance Information</h6>
+                    <table class="table table-borderless">
+                        <tr>
+                            <th>Date:</th>
+                            <td>${recordDate}</td>
+                        </tr>
+                        <tr>
+                            <th>Status:</th>
+                            <td id="attendanceStatus">Loading...</td>
+                        </tr>
+                    </table>
+                </div>
+            `;
+            
+            document.getElementById('detailsModalBody').innerHTML = modalContent;
         });
     });
 </script>

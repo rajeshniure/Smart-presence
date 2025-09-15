@@ -9,7 +9,7 @@ from django.db import IntegrityError
 from django.db.models import Count
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-from .models import Student, Attendance, EmotionLog, Course, StudentPerformance
+from .models import Student, Attendance, Course, StudentPerformance
 import base64
 import json
 from datetime import date, datetime
@@ -610,26 +610,6 @@ def student_delete_api(request, student_id):
     
     return JsonResponse({'success': False, 'message': 'Invalid request method'})
 
-def attendance_emotions_api(request, record_id):
-    """API endpoint to get emotion records for an attendance record"""
-    attendance_record = get_object_or_404(Attendance, id=record_id)
-    emotions = EmotionLog.objects.filter(attendance=attendance_record).order_by('-timestamp')
-    
-    emotions_data = []
-    for emotion in emotions:
-        emotions_data.append({
-            'emotion': emotion.emotion,
-            'confidence': emotion.confidence,
-            'timestamp': emotion.timestamp.isoformat(),
-        })
-    
-    data = {
-        'student_name': attendance_record.student.name,
-        'date': attendance_record.date.strftime('%Y-%m-%d'),
-        'emotions': emotions_data
-    }
-    
-    return JsonResponse(data)
 
 
 @login_required

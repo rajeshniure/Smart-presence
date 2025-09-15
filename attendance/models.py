@@ -152,30 +152,6 @@ class Attendance(models.Model):
         ordering = ['-date', 'student__name']
 
 
-class EmotionLog(models.Model):
-    """Emotion detection logs linked to attendance"""
-    EMOTION_CHOICES = [
-        ('happy', 'Happy'),
-        ('sad', 'Sad'),
-        ('angry', 'Angry'),
-        ('neutral', 'Neutral'),
-        ('disgusted', 'Disgusted'),
-        ('fearful', 'Fearful'),
-        ('surprised', 'Surprised'),
-    ]
-
-    student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='emotion_logs')
-    attendance = models.ForeignKey(Attendance, on_delete=models.CASCADE, related_name='emotions')
-    emotion = models.CharField(max_length=20, choices=EMOTION_CHOICES)
-    confidence = models.FloatField(default=0.0)
-    timestamp = models.DateTimeField(auto_now_add=True)
-    image_capture = models.ImageField(upload_to='emotion_captures/', null=True, blank=True)
-
-    def __str__(self):
-        return f"{self.student.name} - {self.emotion} ({self.confidence:.2f})"
-
-    class Meta:
-        ordering = ['-timestamp']
 
 
 class AttendanceSettings(models.Model):

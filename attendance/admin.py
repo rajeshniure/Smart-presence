@@ -1,6 +1,6 @@
 from django.contrib import admin
 from .models import (
-    Student, Attendance, EmotionLog, Department, Course, 
+    Student, Attendance, Department, Course, 
     ClassSchedule, CourseEnrollment, AttendanceSettings,
     Notification, AttendanceReport, StudentPerformance
 )
@@ -108,13 +108,6 @@ class AttendanceAdmin(admin.ModelAdmin):
     date_hierarchy = 'date'
     ordering = ['-date', 'student__name']
 
-@admin.register(EmotionLog)
-class EmotionLogAdmin(admin.ModelAdmin):
-    list_display = ['student', 'emotion', 'confidence', 'timestamp']
-    list_filter = ['emotion', 'timestamp', 'student__department']
-    search_fields = ['student__name', 'student__roll_number']
-    date_hierarchy = 'timestamp'
-    ordering = ['-timestamp']
 
 @admin.register(AttendanceSettings)
 class AttendanceSettingsAdmin(admin.ModelAdmin):
