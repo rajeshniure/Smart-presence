@@ -104,7 +104,7 @@ class ResNet(nn.Module):
         norm_layer = self._norm_layer
         downsample = None
         previous_dilation = self.dilation
-        if dilate:  
+        if dilate:
             self.dilation *= stride
             stride = 1
         if stride != 1 or self.inplanes != planes * block.expansion:
@@ -139,23 +139,22 @@ class ResNet(nn.Module):
 def resnet18(num_classes):
     return ResNet(BasicBlock, [2, 2, 2, 2], num_classes=num_classes)
 
-# =========================
+
 # Config
-# =========================
+
 DATASET_DIR = "/kaggle/input/faceimages/face_recognition"
 OUTPUT_DIR = "/kaggle/working"
 
 EPOCHS = 30
-BATCH_SIZE = 128  # Increased for multi-GPU
-LEARNING_RATE = 2e-2  # Scaled for multi-GPU (2 GPUs * 1e-2)
+BATCH_SIZE = 64 
+LEARNING_RATE = 1e-4  
 VAL_INTERVAL = 1
 PATIENCE = 6
 SEED = 42
-NUM_CLASSES_TO_PLOT = 10  # Number of classes to include in confusion matrix
+NUM_CLASSES_TO_PLOT = 10  
 
-# =========================
 # Setup
-# =========================
+
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 random.seed(SEED)
 np.random.seed(SEED)
@@ -167,9 +166,7 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 num_gpus = torch.cuda.device_count()
 print(f"Using {num_gpus} GPU(s)")
 
-# =========================
-# Data
-# =========================
+
 IMAGENET_MEAN = [0.485, 0.456, 0.406]
 IMAGENET_STD  = [0.229, 0.224, 0.225]
 
@@ -228,18 +225,14 @@ top_class_indices = np.argsort(counts)[-NUM_CLASSES_TO_PLOT:][::-1]
 top_class_names = [class_names[i] for i in top_class_indices]
 print(f"Top {NUM_CLASSES_TO_PLOT} classes for confusion matrix: {top_class_names}")
 
-# =========================
 # Model (Custom ResNet18 from scratch)
-# =========================
 model = resnet18(num_classes=num_classes)
 model = model.to(device)
 if num_gpus > 1:
     model = nn.DataParallel(model)
     print("Model wrapped with DataParallel for multi-GPU training")
 
-# =========================
 # Loss / Optimizer
-# =========================
 counts = np.bincount(labels, minlength=num_classes).astype(np.float32)
 weights_arr = 1.0 / (counts + 1e-6)
 weights_arr = weights_arr / weights_arr.sum() * num_classes
@@ -249,9 +242,7 @@ criterion = nn.CrossEntropyLoss(weight=class_weights, label_smoothing=0.1)
 optimizer = optim.AdamW(model.parameters(), lr=LEARNING_RATE, weight_decay=1e-4)
 scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=EPOCHS)
 
-# =========================
 # Helpers
-# =========================
 def save_model(model, class_names, filename):
     path = os.path.join(OUTPUT_DIR, filename)
     # Save the state_dict of the unwrapped model if using DataParallel
@@ -317,9 +308,7 @@ def plot_confusion_matrix(cm, class_names, class_indices, title='Confusion Matri
     plt.close()
     print(f"Saved plot -> {os.path.join(OUTPUT_DIR, filename)}")
 
-# =========================
 # Training Loop
-# =========================
 best_acc = 0.0
 no_improve = 0
 
