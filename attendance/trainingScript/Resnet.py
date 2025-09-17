@@ -146,7 +146,7 @@ DATASET_DIR = "/kaggle/input/faceimages/face_recognition"
 OUTPUT_DIR = "/kaggle/working"
 
 EPOCHS = 30
-BATCH_SIZE = 64 
+BATCH_SIZE = 128 
 LEARNING_RATE = 1e-4  
 VAL_INTERVAL = 1
 PATIENCE = 6

@@ -127,7 +127,7 @@ class Attendance(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     def save(self, *args, **kwargs):
-        # Auto-determine status based on check-in time if not explicitly set
+  
         if self.check_in_time and not kwargs.get('force_status', False):
             # Get attendance settings
             settings = AttendanceSettings.get_settings()
@@ -156,11 +156,11 @@ class Attendance(models.Model):
 
 class AttendanceSettings(models.Model):
     """System-wide attendance settings"""
-    on_time_threshold = models.TimeField(default=time(9, 10))  # Default 9:10 AM
-    late_threshold = models.TimeField(default=time(10, 0))     # Default 10:00 AM
-    absent_threshold = models.TimeField(default=time(10, 30))  # Default 10:30 AM
-    min_attendance_percentage = models.FloatField(default=75.0)  # Minimum attendance required (%)
-    face_recognition_threshold = models.FloatField(default=0.9)  # Distance threshold for face recognition (lower = stricter)
+    on_time_threshold = models.TimeField(default=time(9, 10)) 
+    late_threshold = models.TimeField(default=time(10, 0))    
+    absent_threshold = models.TimeField(default=time(10, 30))  
+    min_attendance_percentage = models.FloatField(default=75.0)
+    face_recognition_threshold = models.FloatField(default=0.9) 
     allow_late_marking = models.BooleanField(default=True)
     updated_at = models.DateTimeField(auto_now=True)
     

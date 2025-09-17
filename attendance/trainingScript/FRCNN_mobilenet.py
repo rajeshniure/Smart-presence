@@ -17,7 +17,6 @@ from torchmetrics.detection import MeanAveragePrecision
 import random
 
 def set_seed(seed=42):
-    """Sets the seed for reproducibility."""
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)

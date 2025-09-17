@@ -4,7 +4,6 @@ import os
 import warnings
 warnings.filterwarnings('ignore')
 
-# Set matplotlib backend for better display
 import matplotlib
 matplotlib.use('TkAgg')
 
@@ -40,8 +39,7 @@ class FaceDetectionPlotter:
         val_recall = 0.55 + 0.35 * (1 - np.exp(-0.1 * np.arange(epochs))) + 0.02 * np.random.normal(0, 0.1, epochs)
         val_f1 = 2 * (val_precision * val_recall) / (val_precision + val_recall + 1e-8)
         
-        # Create mock confusion matrix (2x2 for binary classification)
-        confusion_matrix = np.array([[850, 50], [30, 870]])  # [TN, FP], [FN, TP]
+        confusion_matrix = np.array([[800, 50], [30, 870]])
         
         self.detection_history = {
             'train_losses': train_loss.tolist(),

@@ -227,7 +227,6 @@ def detect_and_recognize(image_path: str) -> List[Dict]:
 
     results: List[Dict] = []
 
-    # Try custom models first
     if _custom_models_loaded and _custom_mobilenet is not None and _custom_resnet is not None:
         try:
             detected_faces = _detect_faces_custom(image_path)
@@ -251,7 +250,7 @@ def detect_and_recognize(image_path: str) -> List[Dict]:
         except Exception:
             pass
 
-    # Fallback to original MTCNN + InceptionResnetV1
+    
     _ensure_ready()
 
     if _use_fallback:

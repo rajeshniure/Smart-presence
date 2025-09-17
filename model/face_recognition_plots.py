@@ -113,84 +113,67 @@ class FaceRecognitionPlotter:
             return
         
         print(f" Generating {model_name} confusion matrix...")
-        
-        # Get the last confusion matrix (from final epoch)
-        confusion_matrix = self.recognition_history['val_confusion_matrices'][-1]
-        print(f"Confusion matrix shape: {confusion_matrix.shape}")
-        
+
+        # Determine the best validation epoch (highest val accuracy)
+        best_epoch_idx = None
+        try:
+            val_accuracies = self.recognition_history.get('val_accuracies', [])
+            if isinstance(val_accuracies, (list, np.ndarray)) and len(val_accuracies) > 0:
+                best_epoch_idx = int(np.argmax(val_accuracies))
+        except Exception:
+            best_epoch_idx = None
+
+        # Fallback to final epoch if best not available
+        confusion_matrices = self.recognition_history['val_confusion_matrices']
+        if best_epoch_idx is None or best_epoch_idx >= len(confusion_matrices):
+            best_epoch_idx = len(confusion_matrices) - 1
+
+        confusion_matrix = confusion_matrices[best_epoch_idx]
+        print(f"Using epoch index: {best_epoch_idx} | Confusion matrix shape: {confusion_matrix.shape}")
+
         # Get class names
         class_names = self.recognition_history.get('class_names', [])
         print(f"Number of classes: {len(class_names)}")
-        
-        # For large matrices, show 10 random classes
-        if confusion_matrix.shape[0] > 50:
-            print(" Large confusion matrix detected. Showing 10 random classes...")
-            
-            # Select 10 random classes
-            np.random.seed(42)
-            n_classes = min(10, confusion_matrix.shape[0])
-            selected_indices = np.random.choice(confusion_matrix.shape[0], n_classes, replace=False)
-            selected_indices = np.sort(selected_indices)
-            
-            # Create submatrix
-            sub_confusion_matrix = confusion_matrix[np.ix_(selected_indices, selected_indices)]
-            sub_class_names = [class_names[i] for i in selected_indices]
-            
-            print(f"Selected {n_classes} random classes: {selected_indices}")
-            
-            # Create plot
-            plt.figure(figsize=(12, 8))
-            plt.imshow(sub_confusion_matrix, interpolation='nearest', cmap=plt.cm.Blues)
-            plt.title(f'{model_name} - Confusion Matrix (10 Random Classes)', fontsize=12, fontweight='bold')
-            plt.colorbar()
-            
-            # Set labels
-            tick_marks = np.arange(n_classes)
-            plt.xticks(tick_marks, sub_class_names, rotation=45, ha='right')
-            plt.yticks(tick_marks, sub_class_names)
-            
-            plt.xlabel('Predicted Label', fontsize=12)
-            plt.ylabel('True Label', fontsize=12)
-            
-            # Add text annotations
-            thresh = sub_confusion_matrix.max() / 2.
-            for i in range(n_classes):
-                for j in range(n_classes):
-                    plt.text(j, i, format(sub_confusion_matrix[i, j], 'd'),
-                            ha="center", va="center",
-                            color="white" if sub_confusion_matrix[i, j] > thresh else "black",
-                            fontsize=12)
-            
-            # Add statistics
-            total_samples = np.sum(confusion_matrix)
-            correct_predictions = np.sum(np.diag(confusion_matrix))
-            overall_accuracy = correct_predictions / total_samples if total_samples > 0 else 0
-            
-            plt.figtext(0.02, 0.02, f'Overall Accuracy: {overall_accuracy:.4f}\nTotal Samples: {total_samples}\nCorrect: {correct_predictions}\nShowing 10 random classes out of {confusion_matrix.shape[0]}', 
-                       fontsize=10, bbox=dict(boxstyle="round,pad=0.3", facecolor="lightgreen", alpha=0.7))
-        else:
-            # For smaller matrices, show full detail
-            plt.figure(figsize=(12, 10))
-            plt.imshow(confusion_matrix, interpolation='nearest', cmap=plt.cm.Blues)
-            plt.title(f'{model_name} - Confusion Matrix (Final Epoch)', fontsize=16, fontweight='bold')
-            plt.colorbar()
-            
-            # Set labels
-            tick_marks = np.arange(len(class_names))
-            plt.xticks(tick_marks, class_names, rotation=45, ha='right')
-            plt.yticks(tick_marks, class_names)
-            
-            plt.xlabel('Predicted Label', fontsize=12)
-            plt.ylabel('True Label', fontsize=12)
-            
-            # Add text annotations
-            thresh = confusion_matrix.max() / 2.
-            for i in range(confusion_matrix.shape[0]):
-                for j in range(confusion_matrix.shape[1]):
-                    plt.text(j, i, format(confusion_matrix[i, j], 'd'),
-                            ha="center", va="center",
-                            color="white" if confusion_matrix[i, j] > thresh else "black",
-                            fontsize=8)
+
+        # Select Top-10 classes by support (row sums)
+        num_classes = confusion_matrix.shape[0]
+        top_k = min(10, num_classes)
+        row_sums = confusion_matrix.sum(axis=1)
+        top_indices = np.argsort(-row_sums)[:top_k]
+        top_indices = np.sort(top_indices)
+
+        sub_confusion_matrix = confusion_matrix[np.ix_(top_indices, top_indices)]
+        sub_class_names = [class_names[i] if i < len(class_names) else str(i) for i in top_indices]
+
+        # Create plot in the requested style
+        plt.figure(figsize=(12, 8))
+        plt.imshow(sub_confusion_matrix, interpolation='nearest', cmap=plt.cm.Blues)
+        plt.title('Validation Confusion Matrix (10 Classes)', fontsize=12, fontweight='bold')
+        plt.colorbar()
+
+        # Axis labels and ticks
+        tick_marks = np.arange(len(sub_class_names))
+        plt.xticks(tick_marks, sub_class_names, rotation=45, ha='right')
+        plt.yticks(tick_marks, sub_class_names)
+        plt.xlabel('Predicted label', fontsize=12)
+        plt.ylabel('True label', fontsize=12)
+
+        # Annotate diagonal prominently; annotate off-diagonals only if non-zero
+        max_val = sub_confusion_matrix.max() if sub_confusion_matrix.size > 0 else 1
+        thresh = max_val / 2.0
+        for i in range(sub_confusion_matrix.shape[0]):
+            for j in range(sub_confusion_matrix.shape[1]):
+                value = int(sub_confusion_matrix[i, j])
+                color = "white" if value > thresh else "black"
+                fontsize = 12 if i == j else 10
+                fontweight = 'bold' if i == j else 'normal'
+                plt.text(j, i, f"{value}", ha='center', va='center', color=color, fontsize=fontsize, fontweight=fontweight)
+
+        # Add small footer about selection criteria
+        total_samples = int(confusion_matrix.sum())
+        overall_acc = float(np.trace(confusion_matrix) / total_samples) if total_samples > 0 else 0.0
+        plt.figtext(0.02, 0.02, f'Epoch: {best_epoch_idx + 1}  |  Overall Acc: {overall_acc:.4f}  |  Showing top {top_k} of {num_classes} classes',
+                    fontsize=9, bbox=dict(boxstyle="round,pad=0.3", facecolor="#e6f2ff", alpha=0.7))
         
         plt.tight_layout()
         print(" Displaying confusion matrix...")
