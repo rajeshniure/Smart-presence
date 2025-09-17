@@ -247,7 +247,7 @@ const captureAndProcessCheckIn = () => {
                 ctx.fillRect(0, 0, overlayCanvas.width, overlayCanvas.height);
                 ctx.fillStyle = 'rgba(0, 255, 0, 0.9)';
                 ctx.font = 'bold 14px Arial';
-                let statusText = face.attendance_status === 'already_checked_in' ? 'Already Checked In' : 'Check-in Successful';
+                let statusText = face.attendance_status === 'already_checked_in' ? 'Already Checked In' : 'Check-in';
                 drawTextNormal(ctx, `${face.name} - ${statusText}`, overlayCanvas.width - 200, 60);
                 if (face.roll_number) drawTextNormal(ctx, `Roll: ${face.roll_number}`, overlayCanvas.width - 200, 80);
                 if (face.department) drawTextNormal(ctx, `Dept: ${face.department}`, overlayCanvas.width - 200, 100);
@@ -327,7 +327,7 @@ const captureAndProcessCheckOut = () => {
                 ctx.fillRect(0, 0, overlayCanvas.width, overlayCanvas.height);
                 ctx.fillStyle = 'rgba(255, 165, 0, 0.9)';
                 ctx.font = 'bold 14px Arial';
-                let statusText = 'Check-out Successful';
+                let statusText = 'Check-out';
                 if (face.attendance_status === 'already_checked_out') statusText = 'Already Checked Out';
                 else if (face.attendance_status === 'no_check_in') statusText = 'No Check-in Found';
                 drawTextNormal(ctx, `${face.name} - ${statusText}`, overlayCanvas.width - 200, 60);
