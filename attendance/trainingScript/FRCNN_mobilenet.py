@@ -101,7 +101,7 @@ def get_transform(train):
         ])
     transforms.extend([
         T.ToDtype(torch.float32, scale=True),
-        T.Resize((640, 640), antialias=True),
+        T.Resize((224, 224), antialias=True),
         T.SanitizeBoundingBoxes()
     ])
     return T.Compose(transforms)
